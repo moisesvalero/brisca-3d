@@ -1,0 +1,28 @@
+{
+  "name": "brisca-3d-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm --filter \"@brisca/*\" --parallel dev",
+    "build": "pnpm --filter \"@brisca/*\" build",
+    "test": "pnpm -r --if-present test",
+    "check": "pnpm -r --if-present typecheck",
+    "lint": "oxlint .",
+    "format": "prettier --write .",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "oxlint",
+      "prettier --write"
+    ]
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^17.6.0",
+    "oxlint": "^0.15.11",
+    "prettier": "^3.5.3",
+    "typescript": "^5.8.2"
+  }
+}

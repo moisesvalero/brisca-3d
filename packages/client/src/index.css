@@ -1,0 +1,77 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+    font-family:
+      -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+}
+
+/* CRT and Arcade Retro Overlay Effects (Estilo Balatro) */
+.crt-overlay::before {
+  content: " ";
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  background:
+    linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
+    linear-gradient(
+      90deg,
+      rgba(255, 0, 0, 0.03),
+      rgba(0, 255, 0, 0.01),
+      rgba(0, 0, 255, 0.03)
+    );
+  z-index: 20;
+  background-size:
+    100% 3px,
+    6px 100%;
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.crt-vignette::after {
+  content: " ";
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  background: radial-gradient(
+    circle at center,
+    transparent 55%,
+    rgba(4, 6, 12, 0.8) 100%
+  );
+  z-index: 21;
+  pointer-events: none;
+}
+
+/* Glowing text and borders */
+.arcade-glow-gold {
+  text-shadow:
+    0 0 10px rgba(245, 158, 11, 0.7),
+    0 0 20px rgba(245, 158, 11, 0.4);
+}
+
+.arcade-glow-emerald {
+  text-shadow:
+    0 0 10px rgba(16, 185, 129, 0.7),
+    0 0 20px rgba(16, 185, 129, 0.4);
+}
+
+.arcade-box-glow {
+  box-shadow:
+    0 0 15px rgba(245, 158, 11, 0.3),
+    inset 0 0 15px rgba(245, 158, 11, 0.1);
+}
