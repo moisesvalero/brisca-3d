@@ -34,10 +34,9 @@ export class TableScene {
   constructor(container: HTMLElement) {
     this.container = container;
 
-    // 1. Scene setup
+    // 1. Scene setup: Clean, bright, elegant casino room
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color("#080a10");
-    this.scene.fog = new THREE.FogExp2("#080a10", 0.04);
+    this.scene.background = new THREE.Color("#0c1527");
 
     // 2. Camera setup with isometric angle
     const width = container.clientWidth || window.innerWidth || 800;
@@ -47,7 +46,7 @@ export class TableScene {
     this.camera.position.copy(this.baseCameraPos);
     this.camera.lookAt(0, 0, 0.5);
 
-    // 3. WebGL Renderer with OCLP / Safari Intel HD compatibility
+    // 3. WebGL Renderer
     try {
       this.renderer = new THREE.WebGLRenderer({
         antialias: false,
@@ -70,7 +69,7 @@ export class TableScene {
     }
 
     this.renderer.toneMapping = THREE.LinearToneMapping;
-    this.renderer.toneMappingExposure = 1.1;
+    this.renderer.toneMappingExposure = 1.15;
 
     container.appendChild(this.renderer.domElement);
 
@@ -89,46 +88,44 @@ export class TableScene {
   }
 
   private setupLights() {
-    // Ambient soft warm light
-    const ambient = new THREE.AmbientLight("#fef3c7", 0.45);
-    this.scene.add(ambient);
+    // 1. Rich Hemisphere light for uniform, bright, natural illumination
+    const hemiLight = new THREE.HemisphereLight("#ffffff", "#1e293b", 1.8);
+    this.scene.add(hemiLight);
 
-    // Overhead casino / arcade spotlight
-    const mainSpot = new THREE.SpotLight(
-      "#ffffff",
-      2.8,
-      25,
-      Math.PI / 3.2,
-      0.4,
-      1,
-    );
-    mainSpot.position.set(0, 12, 1);
-    mainSpot.castShadow = true;
-    mainSpot.shadow.mapSize.width = 1024;
-    mainSpot.shadow.mapSize.height = 1024;
-    mainSpot.shadow.bias = -0.0005;
-    this.scene.add(mainSpot);
+    // 2. Main Key Light: Warm, bright spotlight above the table
+    const keyLight = new THREE.DirectionalLight("#fffbeb", 1.6);
+    keyLight.position.set(4, 14, 6);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.width = 1024;
+    keyLight.shadow.mapSize.height = 1024;
+    keyLight.shadow.bias = -0.0005;
+    this.scene.add(keyLight);
 
-    // Trump golden spotlight
+    // 3. Fill Light: Cool fill light to illuminate all card faces evenly
+    const fillLight = new THREE.DirectionalLight("#93c5fd", 0.85);
+    fillLight.position.set(-4, 10, -4);
+    this.scene.add(fillLight);
+
+    // 4. Trump spotlight: Warm amber accent pool on the trump card
     this.trumpSpotlight = new THREE.SpotLight(
       "#f59e0b",
-      3.5,
-      12,
+      3.0,
+      14,
       Math.PI / 4,
-      0.6,
+      0.5,
     );
-    this.trumpSpotlight.position.set(-4.2, 5, 0);
-    this.trumpSpotlight.target.position.set(-4.2, 0, 0);
+    this.trumpSpotlight.position.set(-4.5, 6, 0);
+    this.trumpSpotlight.target.position.set(-4.5, 0, 0);
     this.scene.add(this.trumpSpotlight);
     this.scene.add(this.trumpSpotlight.target);
   }
 
   private setupTable() {
-    // Felt playing mat
+    // Vibrant casino emerald felt mat
     const feltGeo = new THREE.PlaneGeometry(16, 12, 32, 32);
     const feltMat = new THREE.MeshStandardMaterial({
-      color: "#0f3a2d", // Luxury casino emerald felt
-      roughness: 0.85,
+      color: "#166534", // Rich casino green felt
+      roughness: 0.6,
       metalness: 0.05,
     });
     const felt = new THREE.Mesh(feltGeo, feltMat);
@@ -136,15 +133,26 @@ export class TableScene {
     felt.receiveShadow = true;
     this.scene.add(felt);
 
-    // Table wooden border / rail
-    const borderGeo = new THREE.BoxGeometry(17, 0.4, 13);
+    // Golden decorative border line on the felt
+    const lineGeo = new THREE.RingGeometry(4.2, 4.25, 48);
+    const lineMat = new THREE.MeshBasicMaterial({
+      color: "#f59e0b",
+      side: THREE.DoubleSide,
+    });
+    const line = new THREE.Mesh(lineGeo, lineMat);
+    line.rotation.x = -Math.PI / 2;
+    line.position.y = 0.005;
+    this.scene.add(line);
+
+    // Table wooden border / rail (polished mahogany)
+    const borderGeo = new THREE.BoxGeometry(17, 0.45, 13);
     const borderMat = new THREE.MeshStandardMaterial({
-      color: "#1a0e05", // Dark mahogany wood
-      roughness: 0.4,
+      color: "#2b1408",
+      roughness: 0.35,
       metalness: 0.1,
     });
     const border = new THREE.Mesh(borderGeo, borderMat);
-    border.position.y = -0.22;
+    border.position.y = -0.25;
     border.receiveShadow = true;
     this.scene.add(border);
   }
@@ -166,10 +174,10 @@ export class TableScene {
 
     const mat = new THREE.PointsMaterial({
       color: "#fbbf24",
-      size: 0.2,
+      size: 0.25,
       blending: THREE.AdditiveBlending,
       transparent: true,
-      opacity: 0.85,
+      opacity: 0.9,
     });
 
     this.particles = new THREE.Points(geo, mat);
@@ -198,27 +206,28 @@ export class TableScene {
   }
 
   private createCardMesh(card: Card): THREE.Mesh {
-    const cardWidth = 1.9;
-    const cardHeight = 2.85;
-    const cardThick = 0.03;
+    // Authentic Spanish deck card aspect ratio (208x319 -> 1:1.533)
+    const cardWidth = 2.1;
+    const cardHeight = 3.22;
+    const cardThick = 0.04;
 
     const geo = new THREE.BoxGeometry(cardWidth, cardThick, cardHeight);
     const frontTex = getCardTexture(card);
     const backTex = getCardBackTexture();
 
     const edgeMat = new THREE.MeshStandardMaterial({
-      color: "#f1f5f9",
-      roughness: 0.6,
+      color: "#f8fafc",
+      roughness: 0.4,
     });
     const frontMat = new THREE.MeshStandardMaterial({
       map: frontTex,
-      roughness: 0.4,
-      metalness: 0.15,
+      roughness: 0.25,
+      metalness: 0.02,
     });
     const backMat = new THREE.MeshStandardMaterial({
       map: backTex,
-      roughness: 0.45,
-      metalness: 0.1,
+      roughness: 0.3,
+      metalness: 0.02,
     });
 
     // Box materials order: [right, left, top(front), bottom(back), front_edge, back_edge]
@@ -261,11 +270,11 @@ export class TableScene {
 
       entry.isPlayerHand = true;
       const count = myHand.length;
-      const spreadX = 2.2;
+      const spreadX = 2.4;
       const offsetX = (idx - (count - 1) / 2) * spreadX;
 
       const baseZ = 3.6;
-      const baseY = 0.1 + idx * 0.02;
+      const baseY = 0.12 + idx * 0.02;
 
       if (entry.isHovered && isMyTurn) {
         entry.targetPos.set(offsetX, baseY + 0.65, baseZ - 0.5);
@@ -297,9 +306,9 @@ export class TableScene {
         this.cardsMap.set(oppId, entry);
       }
 
-      const spreadX = 2.1;
+      const spreadX = 2.3;
       const offsetX = (i - (opponentCount - 1) / 2) * spreadX;
-      entry.targetPos.set(offsetX, 0.1 + i * 0.02, -3.8);
+      entry.targetPos.set(offsetX, 0.12 + i * 0.02, -3.8);
       // Face down
       entry.targetRot.set(Math.PI, 0, 0);
     }
@@ -321,7 +330,7 @@ export class TableScene {
         };
         this.cardsMap.set(trumpCard.id, entry);
       }
-      entry.targetPos.set(-4.5, 0.05, 0);
+      entry.targetPos.set(-4.6, 0.06, 0);
       entry.targetRot.set(0, Math.PI / 2, 0);
     }
 
@@ -349,7 +358,7 @@ export class TableScene {
         };
         this.cardsMap.set(deckId, entry);
       }
-      entry.targetPos.set(-4.5, 0.2 + deckCount * 0.015, 0);
+      entry.targetPos.set(-4.6, 0.2 + deckCount * 0.015, 0);
       entry.targetRot.set(Math.PI, 0, 0.05);
     }
 
@@ -370,7 +379,7 @@ export class TableScene {
         };
         this.cardsMap.set(currentTrick.leadCard.id, entry);
       }
-      entry.targetPos.set(-1.1, 0.06, 0.2);
+      entry.targetPos.set(-1.2, 0.08, 0.2);
       entry.targetRot.set(0, 0, -0.06);
     }
 
@@ -390,7 +399,7 @@ export class TableScene {
         };
         this.cardsMap.set(currentTrick.followCard.id, entry);
       }
-      entry.targetPos.set(1.1, 0.08, 0.2);
+      entry.targetPos.set(1.2, 0.1, 0.2);
       entry.targetRot.set(0, 0, 0.06);
     }
 
@@ -508,7 +517,7 @@ export class TableScene {
 
     // Pulse trump light gently
     if (this.trumpSpotlight) {
-      this.trumpSpotlight.intensity = 3.5 + Math.sin(Date.now() * 0.003) * 0.6;
+      this.trumpSpotlight.intensity = 3.0 + Math.sin(Date.now() * 0.003) * 0.6;
     }
 
     this.renderer.render(this.scene, this.camera);
