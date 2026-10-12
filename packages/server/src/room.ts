@@ -5,6 +5,7 @@ import {
   GameState,
   PlayerId,
   playCard,
+  collectTrick,
   swapTrumpCard,
 } from "@brisca/core";
 
@@ -91,8 +92,16 @@ export class Room {
 
   public handlePlayCard(playerId: PlayerId, cardId: string): void {
     if (!this.game) return;
-    this.game = playCard(this.game, playerId, cardId);
+    this.game = playCard(this.game, playerId, cardId, false);
     this.broadcastState();
+
+    if (this.game.phase === "RESOLVING_TRICK") {
+      setTimeout(() => {
+        if (!this.game) return;
+        this.game = collectTrick(this.game);
+        this.broadcastState();
+      }, 1200);
+    }
   }
 
   public handleSwapTrump(playerId: PlayerId, cardId: string): void {

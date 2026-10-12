@@ -4,6 +4,7 @@ import {
   GameState,
   PlayerId,
   playCard,
+  collectTrick,
   canSwapTrump,
   swapTrumpCard,
 } from "@brisca/core";
@@ -39,6 +40,9 @@ export class GameClient {
     this.isSoloMode = true;
     this.localGame = createGame("SOLO", "p1");
     this.syncLocalState();
+    if (this.localGame.turn === "p2") {
+      setTimeout(() => this.aiMove(), 800);
+    }
   }
 
   // Create or Join Online Room via WebSocket
@@ -85,18 +89,36 @@ export class GameClient {
 
   public playCard(cardId: string) {
     if (this.isSoloMode && this.localGame) {
-      if (this.localGame.turn !== "p1") return;
+      if (
+        this.localGame.turn !== "p1" ||
+        this.localGame.phase !== "PLAYER_TURN"
+      )
+        return;
 
       try {
-        this.localGame = playCard(this.localGame, "p1", cardId);
+        // Play with autoCollect = false so trick cards remain visible
+        this.localGame = playCard(this.localGame, "p1", cardId, false);
         this.syncLocalState();
 
-        // If turn passed to AI, let AI make a move after a natural delay
-        if (
-          this.localGame.phase === "PLAYER_TURN" &&
-          (this.localGame.turn as string) === "p2"
-        ) {
-          setTimeout(() => this.aiMove(), 700);
+        if (this.localGame.phase === "PLAYER_TURN") {
+          // P1 was lead; pass to AI
+          if (this.localGame.turn === "p2") {
+            setTimeout(() => this.aiMove(), 750);
+          }
+        } else if (this.localGame.phase === "RESOLVING_TRICK") {
+          // P1 was follow; trick is now complete. Pause so player sees cards.
+          setTimeout(() => {
+            if (!this.localGame) return;
+            this.localGame = collectTrick(this.localGame);
+            this.syncLocalState();
+
+            if (
+              this.localGame.phase === "PLAYER_TURN" &&
+              this.localGame.turn === "p2"
+            ) {
+              setTimeout(() => this.aiMove(), 750);
+            }
+          }, 1200);
         }
       } catch (err: any) {
         this.onError?.(err.message);
@@ -140,7 +162,6 @@ export class GameClient {
     }
 
     // AI card choice:
-    // If following and trick has big points (> 10), try to win with trump or higher card; otherwise discard lowest point card
     let chosenCard = hand[0];
     const trickLead = this.localGame.currentTrick.leadCard;
 
@@ -148,15 +169,35 @@ export class GameClient {
       // Find lowest point card by default
       chosenCard = [...hand].sort((a, b) => a.points - b.points)[0];
     } else {
-      // When leading, prefer playing low white cards (rank 2, 4, 5, 6, 7 with 0 pts)
+      // When leading, prefer playing low white cards (0 pts)
       const whiteCards = hand.filter(
         (c) => c.points === 0 && c.suit !== this.localGame!.trumpSuit,
       );
       chosenCard = whiteCards.length > 0 ? whiteCards[0] : hand[0];
     }
 
-    playCard(this.localGame, "p2", chosenCard.id);
+    // Play card with autoCollect = false
+    this.localGame = playCard(this.localGame, "p2", chosenCard.id, false);
     this.syncLocalState();
+
+    if (this.localGame.phase === "PLAYER_TURN") {
+      // AI was lead; turn passed to p1. Nothing to schedule; p1 plays.
+    } else if (this.localGame.phase === "RESOLVING_TRICK") {
+      // AI was follow; trick complete. Pause so user sees the AI card.
+      setTimeout(() => {
+        if (!this.localGame) return;
+        this.localGame = collectTrick(this.localGame);
+        this.syncLocalState();
+
+        // If AI won the trick, AI must lead the next trick!
+        if (
+          this.localGame.phase === "PLAYER_TURN" &&
+          this.localGame.turn === "p2"
+        ) {
+          setTimeout(() => this.aiMove(), 750);
+        }
+      }, 1200);
+    }
   }
 
   private syncLocalState() {

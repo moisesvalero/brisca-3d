@@ -15,6 +15,8 @@ export function getCardTexture(card: Card): THREE.Texture {
   texture.generateMipmaps = true;
   texture.minFilter = THREE.LinearMipmapLinearFilter;
   texture.magFilter = THREE.LinearFilter;
+  texture.center.set(0.5, 0.5);
+  texture.rotation = Math.PI;
   textureCache.set(url, texture);
   return texture;
 }

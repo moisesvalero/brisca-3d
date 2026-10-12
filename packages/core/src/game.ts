@@ -45,6 +45,7 @@ export function playCard(
   game: GameState,
   playerId: PlayerId,
   cardId: string,
+  autoCollect: boolean = true,
 ): GameState {
   if (game.phase !== "PLAYER_TURN") {
     throw new Error(`Cannot play card in phase: ${game.phase}`);
@@ -81,8 +82,26 @@ export function playCard(
     winnerSide === "lead" ? game.currentTrick.leadPlayer : playerId;
 
   game.currentTrick.winner = trickWinner;
+  game.phase = "RESOLVING_TRICK";
+
+  if (autoCollect) {
+    return collectTrick(game);
+  }
+
+  return game;
+}
+
+export function collectTrick(game: GameState): GameState {
+  if (game.phase !== "RESOLVING_TRICK" && !game.currentTrick.winner) {
+    return game;
+  }
+
+  const trickWinner = game.currentTrick.winner!;
+  const leadCard = game.currentTrick.leadCard!;
+  const followCard = game.currentTrick.followCard!;
+
   game.scores[trickWinner] += game.currentTrick.points;
-  game.tricksWon[trickWinner].push(leadCard, playedCard);
+  game.tricksWon[trickWinner].push(leadCard, followCard);
 
   // Draw cards if deck still has cards
   if (game.deck.length > 0) {
@@ -115,6 +134,7 @@ export function playCard(
     }
   } else {
     // Prepare next trick
+    game.phase = "PLAYER_TURN";
     game.leadPlayer = trickWinner;
     game.turn = trickWinner;
     game.currentTrick = {

@@ -27,7 +27,7 @@ export class TableScene {
 
   private trumpSpotlight: THREE.SpotLight | null = null;
   private screenShakeAmount = 0;
-  private baseCameraPos = new THREE.Vector3(0, 11, 8.5);
+  private baseCameraPos = new THREE.Vector3(0, 13, 9.5);
 
   public onCardClick?: (card: Card) => void;
 
@@ -42,9 +42,9 @@ export class TableScene {
     const width = container.clientWidth || window.innerWidth || 800;
     const height = container.clientHeight || window.innerHeight || 600;
     const aspect = width / height;
-    this.camera = new THREE.PerspectiveCamera(42, aspect, 0.1, 100);
+    this.camera = new THREE.PerspectiveCamera(40, aspect, 0.1, 100);
     this.camera.position.copy(this.baseCameraPos);
-    this.camera.lookAt(0, 0, 0.5);
+    this.camera.lookAt(0, 0, 0.1);
 
     // 3. WebGL Renderer
     try {
@@ -114,8 +114,8 @@ export class TableScene {
       Math.PI / 4,
       0.5,
     );
-    this.trumpSpotlight.position.set(-4.5, 6, 0);
-    this.trumpSpotlight.target.position.set(-4.5, 0, 0);
+    this.trumpSpotlight.position.set(-4.3, 6, -0.6);
+    this.trumpSpotlight.target.position.set(-4.3, 0, -0.6);
     this.scene.add(this.trumpSpotlight);
     this.scene.add(this.trumpSpotlight.target);
   }
@@ -207,9 +207,9 @@ export class TableScene {
 
   private createCardMesh(card: Card): THREE.Mesh {
     // Authentic Spanish deck card aspect ratio (208x319 -> 1:1.533)
-    const cardWidth = 2.1;
-    const cardHeight = 3.22;
-    const cardThick = 0.04;
+    const cardWidth = 1.95;
+    const cardHeight = 3.0;
+    const cardThick = 0.03;
 
     const geo = new THREE.BoxGeometry(cardWidth, cardThick, cardHeight);
     const frontTex = getCardTexture(card);
@@ -223,11 +223,15 @@ export class TableScene {
       map: frontTex,
       roughness: 0.25,
       metalness: 0.02,
+      transparent: true,
+      alphaTest: 0.5,
     });
     const backMat = new THREE.MeshStandardMaterial({
       map: backTex,
       roughness: 0.3,
       metalness: 0.02,
+      transparent: true,
+      alphaTest: 0.5,
     });
 
     // Box materials order: [right, left, top(front), bottom(back), front_edge, back_edge]
@@ -270,18 +274,18 @@ export class TableScene {
 
       entry.isPlayerHand = true;
       const count = myHand.length;
-      const spreadX = 2.4;
+      const spreadX = 2.3;
       const offsetX = (idx - (count - 1) / 2) * spreadX;
 
-      const baseZ = 3.6;
+      const baseZ = 2.4;
       const baseY = 0.12 + idx * 0.02;
 
       if (entry.isHovered && isMyTurn) {
-        entry.targetPos.set(offsetX, baseY + 0.65, baseZ - 0.5);
-        entry.targetRot.set(-0.25, 0, (idx - (count - 1) / 2) * -0.05);
+        entry.targetPos.set(offsetX, baseY + 0.55, baseZ - 0.4);
+        entry.targetRot.set(-0.25, 0, (idx - (count - 1) / 2) * -0.04);
       } else {
         entry.targetPos.set(offsetX, baseY, baseZ);
-        entry.targetRot.set(-0.15, 0, (idx - (count - 1) / 2) * -0.08);
+        entry.targetRot.set(-0.15, 0, (idx - (count - 1) / 2) * -0.06);
       }
     });
 
@@ -330,7 +334,7 @@ export class TableScene {
         };
         this.cardsMap.set(trumpCard.id, entry);
       }
-      entry.targetPos.set(-4.6, 0.06, 0);
+      entry.targetPos.set(-4.3, 0.06, -0.6);
       entry.targetRot.set(0, Math.PI / 2, 0);
     }
 
@@ -358,7 +362,7 @@ export class TableScene {
         };
         this.cardsMap.set(deckId, entry);
       }
-      entry.targetPos.set(-4.6, 0.2 + deckCount * 0.015, 0);
+      entry.targetPos.set(-4.3, 0.2 + deckCount * 0.015, -0.6);
       entry.targetRot.set(Math.PI, 0, 0.05);
     }
 
@@ -379,7 +383,7 @@ export class TableScene {
         };
         this.cardsMap.set(currentTrick.leadCard.id, entry);
       }
-      entry.targetPos.set(-1.2, 0.08, 0.2);
+      entry.targetPos.set(-1.1, 0.08, -0.6);
       entry.targetRot.set(0, 0, -0.06);
     }
 
@@ -399,7 +403,7 @@ export class TableScene {
         };
         this.cardsMap.set(currentTrick.followCard.id, entry);
       }
-      entry.targetPos.set(1.2, 0.1, 0.2);
+      entry.targetPos.set(1.1, 0.1, -0.6);
       entry.targetRot.set(0, 0, 0.06);
     }
 
@@ -492,7 +496,7 @@ export class TableScene {
       camZ,
       0.05,
     );
-    this.camera.lookAt(0, 0, 0.5);
+    this.camera.lookAt(0, 0, 0.1);
 
     // Particles update
     if (this.particles) {

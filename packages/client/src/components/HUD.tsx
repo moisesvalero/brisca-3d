@@ -40,7 +40,7 @@ export const HUD: React.FC<HUDProps> = ({
   };
 
   return (
-    <div className="pointer-events-none absolute inset-0 flex flex-col justify-between p-4 z-10">
+    <div className="pointer-events-none absolute inset-0 flex flex-col p-4 z-10">
       {/* Top Bar: Scores & Arcade Info */}
       <div className="flex items-center justify-between">
         {/* Player Score */}
@@ -135,26 +135,34 @@ export const HUD: React.FC<HUDProps> = ({
         </div>
       </div>
 
-      {/* Middle Banner: Turn notification & Quick action button */}
-      <div className="flex flex-col items-center gap-3 mb-24">
+      {/* Top Center Floating Notification & Quick Action */}
+      <div className="flex flex-col items-center gap-2 mt-3">
         <div
-          className={`px-6 py-2 rounded-full font-black text-sm tracking-widest uppercase transition-all duration-300 backdrop-blur-md shadow-2xl border ${
-            isMyTurn
-              ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/50 arcade-glow-emerald animate-pulse"
-              : "bg-slate-900/60 text-slate-400 border-slate-800"
+          className={`px-5 py-1.5 rounded-full font-black text-xs sm:text-sm tracking-wider uppercase transition-all duration-300 backdrop-blur-md shadow-2xl border ${
+            state.phase === "RESOLVING_TRICK"
+              ? state.currentTrick.winner === state.playerId
+                ? "bg-amber-500/30 text-amber-300 border-amber-400 arcade-glow-gold scale-105"
+                : "bg-rose-500/20 text-rose-300 border-rose-500/40"
+              : isMyTurn
+                ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/50 arcade-glow-emerald animate-pulse"
+                : "bg-slate-900/70 text-slate-400 border-slate-800"
           }`}
         >
-          {isMyTurn
-            ? "🎮 TU TURNO - Elige una carta"
-            : "⏳ Esperando jugada del rival..."}
+          {state.phase === "RESOLVING_TRICK"
+            ? state.currentTrick.winner === state.playerId
+              ? `✨ ¡Baza ganada! (+${state.currentTrick.points} pts)`
+              : `⚔️ El rival se lleva la baza (+${state.currentTrick.points} pts)`
+            : isMyTurn
+              ? "🎮 TU TURNO - Elige una carta"
+              : "⏳ Esperando jugada del rival..."}
         </div>
 
         {canSwap && (
           <button
             onClick={onSwapTrump}
-            className="pointer-events-auto flex items-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs uppercase px-5 py-2.5 rounded-full shadow-2xl border border-amber-300 transition-transform active:scale-95 animate-bounce"
+            className="pointer-events-auto flex items-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs uppercase px-5 py-2 rounded-full shadow-2xl border border-amber-300 transition-transform active:scale-95 animate-bounce"
           >
-            <RefreshCw className="w-4 h-4" />
+            <RefreshCw className="w-3.5 h-3.5" />
             <span>Cambiar Triunfo por el 7 / 2</span>
           </button>
         )}

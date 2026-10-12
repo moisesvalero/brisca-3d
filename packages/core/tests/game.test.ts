@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { createGame, playCard, swapTrumpCard, Card } from "../src/index.js";
+import {
+  createGame,
+  playCard,
+  collectTrick,
+  swapTrumpCard,
+  Card,
+} from "../src/index.js";
 
 describe("Game Lifecycle and Engine", () => {
   it("initializes game with 3 cards each, 1 trump and 33 remaining cards", () => {
@@ -82,5 +88,39 @@ describe("Game Lifecycle and Engine", () => {
     expect(game.trumpCard.id).toBe("o7");
     expect(game.hands.p1.some((c) => c.id === "o1")).toBe(true);
     expect(game.hands.p1.some((c) => c.id === "o7")).toBe(false);
+  });
+
+  it("handles non-blocking trick resolution when autoCollect is false", () => {
+    const mockDeck: Card[] = [
+      { id: "o1", suit: "oros", rank: 1, points: 11 },
+      { id: "c2", suit: "copas", rank: 2, points: 0 },
+      { id: "b5", suit: "bastos", rank: 5, points: 0 },
+      { id: "c1", suit: "copas", rank: 1, points: 11 },
+      { id: "e2", suit: "espadas", rank: 2, points: 0 },
+      { id: "b7", suit: "bastos", rank: 7, points: 0 },
+      { id: "o7", suit: "oros", rank: 7, points: 0 }, // Trump
+      { id: "draw1", suit: "oros", rank: 3, points: 10 },
+      { id: "draw2", suit: "copas", rank: 3, points: 10 },
+    ];
+
+    const game = createGame("room-delayed", "p1", mockDeck);
+    playCard(game, "p1", "o1", false);
+    expect(game.phase).toBe("PLAYER_TURN");
+    expect(game.turn).toBe("p2");
+
+    // P2 plays with autoCollect = false
+    playCard(game, "p2", "c1", false);
+    expect(game.phase).toBe("RESOLVING_TRICK");
+    expect(game.currentTrick.leadCard?.id).toBe("o1");
+    expect(game.currentTrick.followCard?.id).toBe("c1");
+    expect(game.currentTrick.winner).toBe("p1");
+    // Scores and draws not committed yet
+    expect(game.scores.p1).toBe(0);
+
+    // Call collectTrick manually
+    collectTrick(game);
+    expect(game.phase).toBe("PLAYER_TURN");
+    expect(game.scores.p1).toBe(22);
+    expect(game.hands.p1).toHaveLength(3);
   });
 });
