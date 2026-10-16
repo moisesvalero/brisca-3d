@@ -29,6 +29,39 @@ class SoundManager {
     }
   }
 
+  // Subtle card hover paper flick
+  private lastHoverTime = 0;
+  public playCardHover() {
+    if (!this.enabled) return;
+    const now = performance.now();
+    if (now - this.lastHoverTime < 120) return;
+    this.lastHoverTime = now;
+    this.initContext();
+    if (!this.ctx) return;
+
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(540, this.ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(
+      780,
+      this.ctx.currentTime + 0.035,
+    );
+
+    gain.gain.setValueAtTime(0.035, this.ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(
+      0.0001,
+      this.ctx.currentTime + 0.035,
+    );
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc.start();
+    osc.stop(this.ctx.currentTime + 0.035);
+  }
+
   // Card whoosh sound when dealt
   public playDeal() {
     if (!this.enabled) return;

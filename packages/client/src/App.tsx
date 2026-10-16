@@ -86,6 +86,12 @@ export const App: React.FC = () => {
       alert(msg);
     };
 
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("solo") === "1" || params.get("solo") === "true") {
+      client.startSoloGame(params.get("name") || "Tú");
+      setInLobby(false);
+    }
+
     return () => {
       sceneRef.current?.destroy();
       client.disconnect();
@@ -144,10 +150,7 @@ export const App: React.FC = () => {
       className={`relative w-full h-full overflow-hidden bg-[#080a10] ${crtEnabled ? "crt-overlay crt-vignette" : ""}`}
     >
       {/* 3D Canvas Container */}
-      <div
-        ref={containerRef}
-        className="absolute inset-0 w-full h-full cursor-grab active:cursor-grabbing"
-      />
+      <div ref={containerRef} className="absolute inset-0 w-full h-full" />
 
       {webglError && (
         <div className="absolute top-2 left-1/2 -translate-x-1/2 z-50 bg-amber-500/90 text-slate-950 font-bold text-xs px-4 py-1.5 rounded-full shadow-lg">

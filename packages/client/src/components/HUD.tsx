@@ -40,46 +40,47 @@ export const HUD: React.FC<HUDProps> = ({
   };
 
   return (
-    <div className="pointer-events-none absolute inset-0 flex flex-col p-4 z-10">
+    <div className="pointer-events-none absolute inset-0 flex flex-col p-2 sm:p-4 pt-[max(0.75rem,env(safe-area-inset-top))] z-10">
       {/* Top Bar: Scores & Arcade Info */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2">
         {/* Player Score */}
-        <div className="pointer-events-auto flex items-center gap-3 bg-slate-900/80 backdrop-blur-md border border-amber-500/30 px-4 py-2 rounded-2xl shadow-xl">
+        <div className="pointer-events-auto flex items-center gap-2 sm:gap-3 bg-slate-900/85 backdrop-blur-md border border-amber-500/30 px-3 sm:px-4 py-1.5 sm:py-2 rounded-2xl shadow-xl">
           <div className="flex flex-col">
-            <span className="text-xs uppercase tracking-wider text-slate-400 font-semibold">
+            <span className="text-[10px] sm:text-xs uppercase tracking-wider text-slate-400 font-semibold">
               Tú
             </span>
-            <span className="text-2xl font-black text-amber-400 arcade-glow-gold">
-              {myScore} <span className="text-xs text-amber-200">PTS</span>
+            <span className="text-xl sm:text-2xl font-black text-amber-400 arcade-glow-gold">
+              {myScore}{" "}
+              <span className="text-[10px] sm:text-xs text-amber-200">PTS</span>
             </span>
           </div>
         </div>
 
         {/* Center: Trump Indicator & Deck */}
-        <div className="pointer-events-auto flex items-center gap-4 bg-slate-950/85 backdrop-blur-lg border border-slate-700/60 px-5 py-2 rounded-2xl shadow-2xl">
-          <div className="flex items-center gap-2">
-            <span className="text-xs uppercase text-slate-400 tracking-wider">
+        <div className="pointer-events-auto flex items-center gap-2.5 sm:gap-4 bg-slate-950/90 backdrop-blur-lg border border-slate-700/60 px-3 sm:px-5 py-1.5 sm:py-2 rounded-2xl shadow-2xl">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <span className="text-[10px] sm:text-xs uppercase text-slate-400 tracking-wider">
               Triunfo:
             </span>
-            <span className="text-sm font-bold uppercase text-amber-300">
+            <span className="text-xs sm:text-sm font-bold uppercase text-amber-300">
               {state.trumpSuit} ({state.trumpCard.rank})
             </span>
           </div>
-          <div className="h-4 w-px bg-slate-700"></div>
-          <div className="text-xs text-slate-300">
+          <div className="h-3 sm:h-4 w-px bg-slate-700"></div>
+          <div className="text-[10px] sm:text-xs text-slate-300">
             Mazo:{" "}
             <span className="font-bold text-white">{state.deckCount}</span>
           </div>
           {state.roomCode && state.roomCode !== "SOLO" && (
             <>
-              <div className="h-4 w-px bg-slate-700"></div>
+              <div className="h-3 sm:h-4 w-px bg-slate-700"></div>
               <button
                 onClick={copyRoomLink}
-                className="flex items-center gap-1.5 text-xs bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 px-2.5 py-1 rounded-lg transition-all"
+                className="flex items-center gap-1 text-[10px] sm:text-xs bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg transition-all"
                 title="Copiar enlace de sala"
                 aria-label="Copiar enlace de la sala"
               >
-                <Share2 className="w-3.5 h-3.5" />
+                <Share2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                 <span>{state.roomCode}</span>
               </button>
             </>
@@ -87,23 +88,26 @@ export const HUD: React.FC<HUDProps> = ({
         </div>
 
         {/* Rival Score & Controls */}
-        <div className="pointer-events-auto flex items-center gap-3">
-          <div className="flex items-center gap-3 bg-slate-900/80 backdrop-blur-md border border-slate-700/50 px-4 py-2 rounded-2xl shadow-xl">
+        <div className="pointer-events-auto flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 bg-slate-900/85 backdrop-blur-md border border-slate-700/50 px-3 sm:px-4 py-1.5 sm:py-2 rounded-2xl shadow-xl">
             <div className="flex flex-col text-right">
-              <span className="text-xs uppercase tracking-wider text-slate-400 font-semibold">
+              <span className="text-[10px] sm:text-xs uppercase tracking-wider text-slate-400 font-semibold">
                 Rival
               </span>
-              <span className="text-2xl font-black text-slate-200">
-                {oppScore} <span className="text-xs text-slate-400">PTS</span>
+              <span className="text-xl sm:text-2xl font-black text-slate-200">
+                {oppScore}{" "}
+                <span className="text-[10px] sm:text-xs text-slate-400">
+                  PTS
+                </span>
               </span>
             </div>
           </div>
 
           {/* Audio & CRT Toggles */}
-          <div className="flex gap-1.5 bg-slate-900/80 backdrop-blur-md border border-slate-800 p-1.5 rounded-2xl">
+          <div className="flex gap-1 bg-slate-900/85 backdrop-blur-md border border-slate-800 p-1 sm:p-1.5 rounded-2xl">
             <button
               onClick={onToggleSound}
-              className="p-2 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 transition"
+              className="p-1.5 sm:p-2 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 transition"
               title="Activar/Desactivar Sonido"
               aria-label={
                 soundEnabled
@@ -112,14 +116,14 @@ export const HUD: React.FC<HUDProps> = ({
               }
             >
               {soundEnabled ? (
-                <Volume2 className="w-4 h-4 text-emerald-400" />
+                <Volume2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400" />
               ) : (
-                <VolumeX className="w-4 h-4 text-rose-400" />
+                <VolumeX className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-rose-400" />
               )}
             </button>
             <button
               onClick={onToggleCRT}
-              className="p-2 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 transition"
+              className="p-1.5 sm:p-2 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 transition"
               title="Filtro Retro Balatro CRT"
               aria-label={
                 crtEnabled
@@ -128,7 +132,7 @@ export const HUD: React.FC<HUDProps> = ({
               }
             >
               <Tv
-                className={`w-4 h-4 ${crtEnabled ? "text-amber-400" : "text-slate-500"}`}
+                className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${crtEnabled ? "text-amber-400" : "text-slate-500"}`}
               />
             </button>
           </div>

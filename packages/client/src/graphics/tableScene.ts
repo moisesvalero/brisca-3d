@@ -18,7 +18,8 @@ export class TableScene {
   private camera: THREE.PerspectiveCamera;
   private renderer: THREE.WebGLRenderer;
   private raycaster = new THREE.Raycaster();
-  private mouse = new THREE.Vector2(-1000, -1000);
+  private mouse = new THREE.Vector2(0, 0);
+  private hoverMouse = new THREE.Vector2(-1000, -1000);
 
   private cardsMap = new Map<string, InteractiveCard>();
   private particles: THREE.Points | null = null;
@@ -28,30 +29,32 @@ export class TableScene {
   private trumpSpotlight: THREE.SpotLight | null = null;
   private screenShakeAmount = 0;
   private baseCameraPos = new THREE.Vector3(0, 13, 9.5);
+  private hoveredCardId: string | null = null;
+  private animFrameId: number | null = null;
+  private isDestroyed = false;
 
   public onCardClick?: (card: Card) => void;
 
   constructor(container: HTMLElement) {
     this.container = container;
 
-    // 1. Scene setup: Clean, bright, elegant casino room
+    // 1. Scene setup: Premium casino room atmosphere
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color("#0c1527");
+    this.scene.background = new THREE.Color("#080c18");
 
-    // 2. Camera setup with isometric angle
+    // 2. Camera setup with isometric perspective
     const width = container.clientWidth || window.innerWidth || 800;
     const height = container.clientHeight || window.innerHeight || 600;
     const aspect = width / height;
     this.camera = new THREE.PerspectiveCamera(40, aspect, 0.1, 100);
-    this.camera.position.copy(this.baseCameraPos);
-    this.camera.lookAt(0, 0, 0.1);
+    this.updateCameraResponsive(width, height);
 
     // 3. WebGL Renderer
     try {
       this.renderer = new THREE.WebGLRenderer({
-        antialias: false,
+        antialias: true,
         alpha: false,
-        powerPreference: "default",
+        powerPreference: "high-performance",
         failIfMajorPerformanceCaveat: false,
       });
     } catch {
@@ -59,11 +62,11 @@ export class TableScene {
     }
 
     this.renderer.setSize(width, height);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 
     try {
       this.renderer.shadowMap.enabled = true;
-      this.renderer.shadowMap.type = THREE.BasicShadowMap;
+      this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     } catch {
       this.renderer.shadowMap.enabled = false;
     }
@@ -87,6 +90,37 @@ export class TableScene {
     this.animate();
   }
 
+  private updateCameraResponsive(width: number, height: number) {
+    const aspect = width / Math.max(1, height);
+
+    // Calculate required vertical FOV so that horizontal width [-5.5, +4.5] always fits
+    const baseFovY = 40;
+    const baseTan = Math.tan((baseFovY * Math.PI) / 360);
+
+    if (aspect < 1.5) {
+      const targetTan = baseTan * (1.5 / Math.max(0.48, aspect));
+      const neededFov = (2 * Math.atan(targetTan) * 180) / Math.PI;
+      this.camera.fov = Math.min(neededFov, 62);
+
+      // On narrow mobile screens, smoothly pull back camera height & distance
+      const mobileFactor = Math.max(0, 0.95 - aspect);
+      const camY = 13 + mobileFactor * 6.5;
+      const camZ = 9.5 + mobileFactor * 4.8;
+      this.baseCameraPos.set(0, camY, camZ);
+    } else {
+      this.camera.fov = 40;
+      this.baseCameraPos.set(0, 13, 9.5);
+    }
+
+    this.camera.aspect = aspect;
+    this.camera.position.copy(this.baseCameraPos);
+    this.camera.lookAt(0, 0, 0.1);
+    this.camera.updateProjectionMatrix();
+    if (this.renderer) {
+      this.renderer.setSize(width, height);
+    }
+  }
+
   private setupLights() {
     // 1. Rich Hemisphere light for uniform, bright, natural illumination
     const hemiLight = new THREE.HemisphereLight("#ffffff", "#1e293b", 1.8);
@@ -98,6 +132,12 @@ export class TableScene {
     keyLight.castShadow = true;
     keyLight.shadow.mapSize.width = 1024;
     keyLight.shadow.mapSize.height = 1024;
+    keyLight.shadow.camera.near = 1;
+    keyLight.shadow.camera.far = 30;
+    keyLight.shadow.camera.left = -10;
+    keyLight.shadow.camera.right = 10;
+    keyLight.shadow.camera.top = 10;
+    keyLight.shadow.camera.bottom = -10;
     keyLight.shadow.bias = -0.0005;
     this.scene.add(keyLight);
 
@@ -109,32 +149,45 @@ export class TableScene {
     // 4. Trump spotlight: Warm amber accent pool on the trump card
     this.trumpSpotlight = new THREE.SpotLight(
       "#f59e0b",
-      3.0,
-      14,
+      3.2,
+      15,
       Math.PI / 4,
       0.5,
     );
-    this.trumpSpotlight.position.set(-4.3, 6, -0.6);
-    this.trumpSpotlight.target.position.set(-4.3, 0, -0.6);
+    this.trumpSpotlight.position.set(-3.5, 6, -0.5);
+    this.trumpSpotlight.target.position.set(-3.5, 0, -0.5);
     this.scene.add(this.trumpSpotlight);
     this.scene.add(this.trumpSpotlight.target);
   }
 
   private setupTable() {
-    // Vibrant casino emerald felt mat
-    const feltGeo = new THREE.PlaneGeometry(16, 12, 32, 32);
-    const feltMat = new THREE.MeshStandardMaterial({
-      color: "#166534", // Rich casino green felt
-      roughness: 0.6,
+    // 1. Deep room floor plane so there is never an empty void
+    const floorGeo = new THREE.PlaneGeometry(80, 80);
+    const floorMat = new THREE.MeshStandardMaterial({
+      color: "#060914",
+      roughness: 0.95,
       metalness: 0.05,
+    });
+    const floor = new THREE.Mesh(floorGeo, floorMat);
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = -0.5;
+    floor.receiveShadow = true;
+    this.scene.add(floor);
+
+    // 2. Expansive casino emerald felt mat
+    const feltGeo = new THREE.PlaneGeometry(50, 36, 32, 32);
+    const feltMat = new THREE.MeshStandardMaterial({
+      color: "#0e4a27", // Rich luxury casino green
+      roughness: 0.65,
+      metalness: 0.02,
     });
     const felt = new THREE.Mesh(feltGeo, feltMat);
     felt.rotation.x = -Math.PI / 2;
     felt.receiveShadow = true;
     this.scene.add(felt);
 
-    // Golden decorative border line on the felt
-    const lineGeo = new THREE.RingGeometry(4.2, 4.25, 48);
+    // 3. Golden decorative border line on the felt
+    const lineGeo = new THREE.RingGeometry(4.6, 4.65, 64);
     const lineMat = new THREE.MeshBasicMaterial({
       color: "#f59e0b",
       side: THREE.DoubleSide,
@@ -144,17 +197,28 @@ export class TableScene {
     line.position.y = 0.005;
     this.scene.add(line);
 
-    // Table wooden border / rail (polished mahogany)
-    const borderGeo = new THREE.BoxGeometry(17, 0.45, 13);
+    // 4. Table wooden border / rail (polished mahogany)
+    const borderGeo = new THREE.BoxGeometry(52, 0.45, 38);
     const borderMat = new THREE.MeshStandardMaterial({
-      color: "#2b1408",
+      color: "#241108",
       roughness: 0.35,
-      metalness: 0.1,
+      metalness: 0.08,
     });
     const border = new THREE.Mesh(borderGeo, borderMat);
     border.position.y = -0.25;
     border.receiveShadow = true;
     this.scene.add(border);
+
+    // 5. Outer padded armrest rim (dark leather)
+    const armrestGeo = new THREE.BoxGeometry(53, 0.55, 39);
+    const armrestMat = new THREE.MeshStandardMaterial({
+      color: "#140a05",
+      roughness: 0.55,
+      metalness: 0.02,
+    });
+    const armrest = new THREE.Mesh(armrestGeo, armrestMat);
+    armrest.position.y = -0.32;
+    this.scene.add(armrest);
   }
 
   private setupParticles() {
@@ -206,32 +270,30 @@ export class TableScene {
   }
 
   private createCardMesh(card: Card): THREE.Mesh {
-    // Authentic Spanish deck card aspect ratio (208x319 -> 1:1.533)
-    const cardWidth = 1.95;
+    // Authentic Spanish deck card aspect ratio (209x319 -> 1:1.526)
+    const cardWidth = 1.96;
     const cardHeight = 3.0;
-    const cardThick = 0.03;
+    const cardThick = 0.024;
 
     const geo = new THREE.BoxGeometry(cardWidth, cardThick, cardHeight);
     const frontTex = getCardTexture(card);
     const backTex = getCardBackTexture();
 
     const edgeMat = new THREE.MeshStandardMaterial({
-      color: "#f8fafc",
-      roughness: 0.4,
+      color: "#faf8f5",
+      roughness: 0.45,
     });
     const frontMat = new THREE.MeshStandardMaterial({
       map: frontTex,
-      roughness: 0.25,
-      metalness: 0.02,
-      transparent: true,
-      alphaTest: 0.5,
+      roughness: 0.28,
+      metalness: 0.0,
+      transparent: false,
     });
     const backMat = new THREE.MeshStandardMaterial({
       map: backTex,
-      roughness: 0.3,
-      metalness: 0.02,
-      transparent: true,
-      alphaTest: 0.5,
+      roughness: 0.32,
+      metalness: 0.0,
+      transparent: false,
     });
 
     // Box materials order: [right, left, top(front), bottom(back), front_edge, back_edge]
@@ -274,18 +336,18 @@ export class TableScene {
 
       entry.isPlayerHand = true;
       const count = myHand.length;
-      const spreadX = 2.3;
+      const spreadX = 2.2;
       const offsetX = (idx - (count - 1) / 2) * spreadX;
 
       const baseZ = 2.4;
-      const baseY = 0.12 + idx * 0.02;
+      const baseY = 0.12 + idx * 0.015;
 
       if (entry.isHovered && isMyTurn) {
         entry.targetPos.set(offsetX, baseY + 0.55, baseZ - 0.4);
-        entry.targetRot.set(-0.25, 0, (idx - (count - 1) / 2) * -0.04);
+        entry.targetRot.set(-0.32, 0, (idx - (count - 1) / 2) * -0.04);
       } else {
         entry.targetPos.set(offsetX, baseY, baseZ);
-        entry.targetRot.set(-0.15, 0, (idx - (count - 1) / 2) * -0.06);
+        entry.targetRot.set(-0.16, 0, (idx - (count - 1) / 2) * -0.05);
       }
     });
 
@@ -310,7 +372,7 @@ export class TableScene {
         this.cardsMap.set(oppId, entry);
       }
 
-      const spreadX = 2.3;
+      const spreadX = 2.2;
       const offsetX = (i - (opponentCount - 1) / 2) * spreadX;
       entry.targetPos.set(offsetX, 0.12 + i * 0.02, -3.8);
       // Face down
@@ -334,11 +396,12 @@ export class TableScene {
         };
         this.cardsMap.set(trumpCard.id, entry);
       }
-      entry.targetPos.set(-4.3, 0.06, -0.6);
+      // Positioned so its right face and rank index stick out cleanly from under the deck
+      entry.targetPos.set(-3.5, 0.05, -0.5);
       entry.targetRot.set(0, Math.PI / 2, 0);
     }
 
-    // 4. Deck stack (on top of trump card)
+    // 4. Deck stack (on top of trump card, crossed)
     if (deckCount > 0) {
       const deckId = "deck_stack";
       activeIds.add(deckId);
@@ -362,8 +425,8 @@ export class TableScene {
         };
         this.cardsMap.set(deckId, entry);
       }
-      entry.targetPos.set(-4.3, 0.2 + deckCount * 0.015, -0.6);
-      entry.targetRot.set(Math.PI, 0, 0.05);
+      entry.targetPos.set(-4.2, 0.07 + deckCount * 0.012, -0.5);
+      entry.targetRot.set(Math.PI, 0, 0.04);
     }
 
     // 5. Current Trick (Center table)
@@ -383,8 +446,8 @@ export class TableScene {
         };
         this.cardsMap.set(currentTrick.leadCard.id, entry);
       }
-      entry.targetPos.set(-1.1, 0.08, -0.6);
-      entry.targetRot.set(0, 0, -0.06);
+      entry.targetPos.set(-0.95, 0.08, -0.5);
+      entry.targetRot.set(0, 0, -0.05);
     }
 
     if (currentTrick.followCard) {
@@ -403,8 +466,8 @@ export class TableScene {
         };
         this.cardsMap.set(currentTrick.followCard.id, entry);
       }
-      entry.targetPos.set(1.1, 0.1, -0.6);
-      entry.targetRot.set(0, 0, 0.06);
+      entry.targetPos.set(0.95, 0.1, -0.5);
+      entry.targetRot.set(0, 0, 0.05);
     }
 
     // Cleanup cards no longer in play
@@ -418,23 +481,39 @@ export class TableScene {
 
   private onPointerMove = (e: PointerEvent) => {
     const rect = this.container.getBoundingClientRect();
-    this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-    this.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    if (rect.width <= 0 || rect.height <= 0) return;
+    const nx = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    const ny = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    this.mouse.set(
+      Math.max(-1, Math.min(1, nx)),
+      Math.max(-1, Math.min(1, ny)),
+    );
+    this.hoverMouse.set(nx, ny);
 
-    this.raycaster.setFromCamera(this.mouse, this.camera);
+    this.raycaster.setFromCamera(this.hoverMouse, this.camera);
     const meshes = Array.from(this.cardsMap.values())
       .filter((c) => c.isPlayerHand)
       .map((c) => c.mesh);
 
     const intersects = this.raycaster.intersectObjects(meshes);
 
+    let newlyHoveredId: string | null = null;
     for (const entry of this.cardsMap.values()) {
       if (entry.isPlayerHand) {
         const hit =
           intersects.length > 0 && intersects[0].object === entry.mesh;
         entry.isHovered = hit;
+        if (hit) {
+          newlyHoveredId = entry.card.id;
+        }
       }
     }
+
+    if (newlyHoveredId && newlyHoveredId !== this.hoveredCardId) {
+      sounds.playCardHover();
+    }
+    this.hoveredCardId = newlyHoveredId;
+    this.container.style.cursor = newlyHoveredId ? "pointer" : "default";
   };
 
   private onPointerDown = (e: PointerEvent) => {
@@ -459,26 +538,25 @@ export class TableScene {
   private onResize = () => {
     const width = this.container.clientWidth || window.innerWidth || 800;
     const height = this.container.clientHeight || window.innerHeight || 600;
-    this.camera.aspect = width / height;
-    this.camera.updateProjectionMatrix();
-    this.renderer.setSize(width, height);
+    this.updateCameraResponsive(width, height);
   };
 
   private animate = () => {
-    requestAnimationFrame(this.animate);
+    if (this.isDestroyed) return;
+    this.animFrameId = requestAnimationFrame(this.animate);
 
     // Smooth lerp card positions and rotations
     for (const entry of this.cardsMap.values()) {
-      entry.mesh.position.lerp(entry.targetPos, 0.15);
+      entry.mesh.position.lerp(entry.targetPos, 0.16);
       entry.mesh.quaternion.slerp(
         new THREE.Quaternion().setFromEuler(entry.targetRot),
-        0.15,
+        0.16,
       );
     }
 
     // Camera tilt reacting to cursor + Screen Shake
-    let camX = this.baseCameraPos.x + this.mouse.x * 0.4;
-    let camZ = this.baseCameraPos.z + this.mouse.y * 0.3;
+    let camX = this.baseCameraPos.x + this.mouse.x * 0.3;
+    let camZ = this.baseCameraPos.z + this.mouse.y * 0.2;
 
     if (this.screenShakeAmount > 0.001) {
       camX += (Math.random() - 0.5) * this.screenShakeAmount;
@@ -521,13 +599,18 @@ export class TableScene {
 
     // Pulse trump light gently
     if (this.trumpSpotlight) {
-      this.trumpSpotlight.intensity = 3.0 + Math.sin(Date.now() * 0.003) * 0.6;
+      this.trumpSpotlight.intensity = 3.2 + Math.sin(Date.now() * 0.003) * 0.5;
     }
 
     this.renderer.render(this.scene, this.camera);
   };
 
   public destroy() {
+    this.isDestroyed = true;
+    if (this.animFrameId !== null) {
+      cancelAnimationFrame(this.animFrameId);
+      this.animFrameId = null;
+    }
     window.removeEventListener("resize", this.onResize);
     this.container.removeEventListener("pointermove", this.onPointerMove);
     this.container.removeEventListener("pointerdown", this.onPointerDown);
