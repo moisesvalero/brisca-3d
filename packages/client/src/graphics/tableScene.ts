@@ -154,8 +154,8 @@ export class TableScene {
       Math.PI / 4,
       0.5,
     );
-    this.trumpSpotlight.position.set(-3.5, 6, -0.5);
-    this.trumpSpotlight.target.position.set(-3.5, 0, -0.5);
+    this.trumpSpotlight.position.set(-3.7, 6, -0.5);
+    this.trumpSpotlight.target.position.set(-3.7, 0, -0.5);
     this.scene.add(this.trumpSpotlight);
     this.scene.add(this.trumpSpotlight.target);
   }
@@ -340,14 +340,15 @@ export class TableScene {
       const offsetX = (idx - (count - 1) / 2) * spreadX;
 
       const baseZ = 2.4;
-      const baseY = 0.12 + idx * 0.015;
+      // baseY elevated so that tilted cards (-0.20 rad) never penetrate the table (y=0)
+      const baseY = 0.44 + idx * 0.015;
 
       if (entry.isHovered && isMyTurn) {
-        entry.targetPos.set(offsetX, baseY + 0.55, baseZ - 0.4);
-        entry.targetRot.set(-0.32, 0, (idx - (count - 1) / 2) * -0.04);
+        entry.targetPos.set(offsetX, baseY + 0.45, baseZ - 0.35);
+        entry.targetRot.set(-0.30, 0, (idx - (count - 1) / 2) * -0.03);
       } else {
         entry.targetPos.set(offsetX, baseY, baseZ);
-        entry.targetRot.set(-0.16, 0, (idx - (count - 1) / 2) * -0.05);
+        entry.targetRot.set(-0.20, 0, (idx - (count - 1) / 2) * -0.05);
       }
     });
 
@@ -397,7 +398,7 @@ export class TableScene {
         this.cardsMap.set(trumpCard.id, entry);
       }
       // Positioned so its right face and rank index stick out cleanly from under the deck
-      entry.targetPos.set(-3.5, 0.05, -0.5);
+      entry.targetPos.set(-3.7, 0.05, -0.5);
       entry.targetRot.set(0, Math.PI / 2, 0);
     }
 
@@ -425,7 +426,7 @@ export class TableScene {
         };
         this.cardsMap.set(deckId, entry);
       }
-      entry.targetPos.set(-4.2, 0.07 + deckCount * 0.012, -0.5);
+      entry.targetPos.set(-4.4, 0.065 + deckCount * 0.003, -0.5);
       entry.targetRot.set(Math.PI, 0, 0.04);
     }
 
