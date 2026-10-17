@@ -91,3 +91,27 @@
 .install-rise {
   animation: install-rise 0.35s ease-out both;
 }
+
+/* Permanent subtle retro grade over the 3D table and UI */
+.retro-vignette {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse at 50% 46%,
+    transparent 42%,
+    rgba(7, 4, 2, 0.46) 100%
+  );
+}
+
+.retro-grain {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  pointer-events: none;
+  background-image: url("/textures/grain.png");
+  background-repeat: repeat;
+  opacity: 0.035;
+  mix-blend-mode: overlay;
+}

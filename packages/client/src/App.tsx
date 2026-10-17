@@ -312,6 +312,8 @@ export const App: React.FC = () => {
         aria-hidden="true"
         className="absolute inset-0 w-full h-full"
       />
+      <div className="retro-vignette" aria-hidden="true" />
+      <div className="retro-grain" aria-hidden="true" />
 
       {webglError && (
         <div className="absolute top-2 left-1/2 -translate-x-1/2 z-50 bg-amber-500/90 text-slate-950 font-bold text-xs px-4 py-1.5 rounded-full shadow-lg">

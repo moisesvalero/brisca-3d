@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { Card } from "@brisca/core";
 import { getCardTexture, getCardBackTexture } from "./cardTextures.js";
+import { createFeltTexture } from "./tableTextures.js";
 import { sounds } from "../audio/soundManager.js";
 
 export interface InteractiveCard {
@@ -40,7 +41,8 @@ export class TableScene {
 
     // 1. Scene setup: Premium casino room atmosphere
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color("#080c18");
+    this.scene.background = new THREE.Color("#0a0705");
+    this.scene.fog = new THREE.FogExp2("#0a0705", 0.022);
 
     // 2. Camera setup with isometric perspective
     const width = container.clientWidth || window.innerWidth || 800;
@@ -123,11 +125,11 @@ export class TableScene {
 
   private setupLights() {
     // 1. Rich Hemisphere light for uniform, bright, natural illumination
-    const hemiLight = new THREE.HemisphereLight("#ffffff", "#1e293b", 1.8);
+    const hemiLight = new THREE.HemisphereLight("#ffe9c9", "#140f08", 1.15);
     this.scene.add(hemiLight);
 
     // 2. Main Key Light: Warm, bright spotlight above the table
-    const keyLight = new THREE.DirectionalLight("#fffbeb", 1.6);
+    const keyLight = new THREE.DirectionalLight("#fff1d6", 1.75);
     keyLight.position.set(4, 14, 6);
     keyLight.castShadow = true;
     keyLight.shadow.mapSize.width = 1024;
@@ -142,20 +144,20 @@ export class TableScene {
     this.scene.add(keyLight);
 
     // 3. Fill Light: Cool fill light to illuminate all card faces evenly
-    const fillLight = new THREE.DirectionalLight("#93c5fd", 0.85);
+    const fillLight = new THREE.DirectionalLight("#8fc7b0", 0.35);
     fillLight.position.set(-4, 10, -4);
     this.scene.add(fillLight);
 
     // 4. Trump spotlight: Warm amber accent pool on the trump card
     this.trumpSpotlight = new THREE.SpotLight(
-      "#f59e0b",
-      3.2,
-      15,
+      "#ffb84d",
+      2.8,
+      16,
       Math.PI / 4,
-      0.5,
+      0.55,
     );
-    this.trumpSpotlight.position.set(-3.7, 6, -0.5);
-    this.trumpSpotlight.target.position.set(-3.7, 0, -0.5);
+    this.trumpSpotlight.position.set(-2.0, 6, -0.5);
+    this.trumpSpotlight.target.position.set(-2.0, 0, -0.5);
     this.scene.add(this.trumpSpotlight);
     this.scene.add(this.trumpSpotlight.target);
   }
@@ -164,7 +166,7 @@ export class TableScene {
     // 1. Deep room floor plane so there is never an empty void
     const floorGeo = new THREE.PlaneGeometry(80, 80);
     const floorMat = new THREE.MeshStandardMaterial({
-      color: "#060914",
+      color: "#0a0705",
       roughness: 0.95,
       metalness: 0.05,
     });
@@ -177,8 +179,9 @@ export class TableScene {
     // 2. Expansive casino emerald felt mat
     const feltGeo = new THREE.PlaneGeometry(50, 36, 32, 32);
     const feltMat = new THREE.MeshStandardMaterial({
-      color: "#0e4a27", // Rich luxury casino green
-      roughness: 0.65,
+      map: createFeltTexture(),
+      color: "#ffffff",
+      roughness: 0.84,
       metalness: 0.02,
     });
     const felt = new THREE.Mesh(feltGeo, feltMat);
@@ -186,16 +189,105 @@ export class TableScene {
     felt.receiveShadow = true;
     this.scene.add(felt);
 
-    // 3. Golden decorative border line on the felt
-    const lineGeo = new THREE.RingGeometry(4.6, 4.65, 64);
-    const lineMat = new THREE.MeshBasicMaterial({
-      color: "#f59e0b",
+    // 3. Double antique-gold ring with a cream inlay and brass studs
+    const goldMat = new THREE.MeshStandardMaterial({
+      color: "#c9963f",
+      metalness: 0.35,
+      roughness: 0.42,
+      emissive: "#3a2308",
+      emissiveIntensity: 0.4,
       side: THREE.DoubleSide,
     });
-    const line = new THREE.Mesh(lineGeo, lineMat);
-    line.rotation.x = -Math.PI / 2;
-    line.position.y = 0.005;
-    this.scene.add(line);
+    const goldBand = new THREE.Mesh(
+      new THREE.RingGeometry(4.56, 4.72, 128),
+      goldMat,
+    );
+    goldBand.rotation.x = -Math.PI / 2;
+    goldBand.position.y = 0.006;
+    this.scene.add(goldBand);
+
+    const creamMat = new THREE.MeshBasicMaterial({
+      color: "#ead7a8",
+      transparent: true,
+      opacity: 0.55,
+      side: THREE.DoubleSide,
+    });
+    const creamLine = new THREE.Mesh(
+      new THREE.RingGeometry(4.34, 4.37, 128),
+      creamMat,
+    );
+    creamLine.rotation.x = -Math.PI / 2;
+    creamLine.position.y = 0.007;
+    this.scene.add(creamLine);
+
+    const outerMat = new THREE.MeshBasicMaterial({
+      color: "#8a6424",
+      transparent: true,
+      opacity: 0.4,
+      side: THREE.DoubleSide,
+    });
+    const outerLine = new THREE.Mesh(
+      new THREE.RingGeometry(4.95, 4.97, 128),
+      outerMat,
+    );
+    outerLine.rotation.x = -Math.PI / 2;
+    outerLine.position.y = 0.0065;
+    this.scene.add(outerLine);
+
+    const studGeo = new THREE.SphereGeometry(0.045, 10, 10);
+    const studMat = new THREE.MeshStandardMaterial({
+      color: "#e0b96b",
+      metalness: 0.5,
+      roughness: 0.32,
+      emissive: "#4a2c08",
+      emissiveIntensity: 0.3,
+    });
+    for (let i = 0; i < 8; i += 1) {
+      const angle = (i / 8) * Math.PI * 2;
+      const stud = new THREE.Mesh(studGeo, studMat);
+      stud.position.set(Math.cos(angle) * 4.64, 0.026, Math.sin(angle) * 4.64);
+      this.scene.add(stud);
+    }
+
+    // 3b. Low mahogany rail with a brass inlay around the play area
+    const railMat = new THREE.MeshStandardMaterial({
+      color: "#2a150b",
+      roughness: 0.42,
+      metalness: 0.08,
+    });
+    const inlayMat = new THREE.MeshStandardMaterial({
+      color: "#b8863a",
+      metalness: 0.45,
+      roughness: 0.35,
+      emissive: "#2a1806",
+      emissiveIntensity: 0.25,
+    });
+    const railHeight = 0.18;
+    const railWidth = 0.24;
+    const railY = 0.09;
+    const railDefs = [
+      { w: 16.3, d: railWidth, x: 0, z: -5.25 },
+      { w: 16.3, d: railWidth, x: 0, z: 5.25 },
+      { w: railWidth, d: 10.5, x: -7.85, z: 0 },
+      { w: railWidth, d: 10.5, x: 7.85, z: 0 },
+    ];
+    for (const def of railDefs) {
+      const rail = new THREE.Mesh(
+        new THREE.BoxGeometry(def.w, railHeight, def.d),
+        railMat,
+      );
+      rail.position.set(def.x, railY, def.z);
+      rail.castShadow = true;
+      rail.receiveShadow = true;
+      this.scene.add(rail);
+
+      const inlay = new THREE.Mesh(
+        new THREE.BoxGeometry(def.w + 0.006, 0.015, def.d + 0.006),
+        inlayMat,
+      );
+      inlay.position.set(def.x, railY + railHeight / 2 + 0.008, def.z);
+      this.scene.add(inlay);
+    }
 
     // 4. Table wooden border / rail (polished mahogany)
     const borderGeo = new THREE.BoxGeometry(52, 0.45, 38);
