@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import {
   Check,
   Copy,
@@ -20,7 +20,10 @@ const Step: React.FC<{
   children: React.ReactNode;
 }> = ({ icon: Icon, children }) => (
   <li className="flex items-start gap-3">
-    <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-300">
+    <span
+      aria-hidden="true"
+      className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-300"
+    >
       <Icon className="h-4 w-4" />
     </span>
     <span className="text-sm leading-relaxed text-slate-300">{children}</span>
@@ -30,11 +33,43 @@ const Step: React.FC<{
 export const InstallBanner: React.FC<InstallBannerProps> = ({ show }) => {
   const p = useInstallPrompt(show);
 
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  // If the player creates/joins a room while the guide is open, close it.
+  useEffect(() => {
+    if (!show) p.setHelpOpen(false);
+  }, [show, p.setHelpOpen]);
+
   useEffect(() => {
     if (!p.helpOpen) return;
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") p.setHelpOpen(false);
+      if (event.key === "Escape") {
+        p.setHelpOpen(false);
+        return;
+      }
+      if (event.key !== "Tab") return;
+
+      const focusable = Array.from(
+        dialog.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((node) => !node.hasAttribute("disabled"));
+      if (focusable.length === 0) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
+
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [p.helpOpen, p.setHelpOpen]);
@@ -43,7 +78,7 @@ export const InstallBanner: React.FC<InstallBannerProps> = ({ show }) => {
 
   return (
     <>
-      {p.visible && (
+      {p.visible && !p.helpOpen && (
         <div
           role="region"
           aria-label="Instalar Brisca 3D"
@@ -101,7 +136,10 @@ export const InstallBanner: React.FC<InstallBannerProps> = ({ show }) => {
           aria-labelledby="install-help-title"
           className="fixed inset-0 z-[65] flex items-end justify-center bg-slate-950/85 p-4 backdrop-blur-md sm:items-center"
         >
-          <div className="w-full max-w-md rounded-3xl border border-amber-500/40 bg-slate-900 p-5 shadow-2xl">
+          <div
+            ref={dialogRef}
+            className="w-full max-w-md rounded-3xl border border-amber-500/40 bg-slate-900 p-5 shadow-2xl"
+          >
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-wider text-amber-300">

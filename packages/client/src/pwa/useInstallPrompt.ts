@@ -143,13 +143,15 @@ export function useInstallPrompt(show: boolean) {
       if (choice.outcome === "accepted") {
         setInstalled(true);
       } else {
-        setDismissed(true);
+        // Persist the dismissal: if the user rejects the native prompt we
+        // should not ask again on the next visit.
+        dismiss();
       }
     } catch {
       setHelpOpen(true);
     }
     setDeferred(null);
-  }, [deferred]);
+  }, [deferred, dismiss]);
 
   const copyLink = useCallback(async () => {
     const link = window.location.href;
