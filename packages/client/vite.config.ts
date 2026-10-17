@@ -7,12 +7,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: [
-        "favicon-32.png",
-        "apple-touch-icon.png",
-        "cards/*.png",
-        "config.json",
-      ],
+      includeAssets: ["favicon-32.png", "apple-touch-icon.png", "config.json"],
       manifest: {
         name: "Brisca 3D Royale",
         short_name: "Brisca 3D",
@@ -49,7 +44,7 @@ export default defineConfig({
         globIgnores: ["_worker.js", "sw.js", "workbox-*.js"],
         runtimeCaching: [
           {
-            urlPattern: /\/cards\/.*\.png$/,
+            urlPattern: /\/cards\/.*\.webp$/,
             handler: "CacheFirst",
             options: {
               cacheName: "brisca-cards",

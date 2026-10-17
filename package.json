@@ -10,7 +10,9 @@
   "scripts": {
     "dev": "pnpm --filter @brisca/server --filter @brisca/client --parallel dev",
     "dev:worker": "pnpm --filter @brisca/worker dev:worker",
-    "deploy:worker": "pnpm --filter @brisca/client build && pnpm --filter @brisca/worker deploy",
+    "deploy:worker": "pnpm --filter @brisca/client build && pnpm --filter @brisca/worker run deploy",
+    "deploy:web": "pnpm dlx vercel@latest --prod --yes",
+    "release": "pnpm run deploy:worker && pnpm run deploy:web",
     "build": "pnpm --filter \"@brisca/*\" build",
     "test": "pnpm -r --if-present test",
     "check": "pnpm -r --if-present typecheck",

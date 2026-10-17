@@ -270,9 +270,9 @@ export class TableScene {
   }
 
   private createCardMesh(card: Card): THREE.Mesh {
-    // Authentic Spanish deck card aspect ratio (209x319 -> 1:1.526)
+    // Fournier 1878 deck: real 60x94 mm (1:1.567)
     const cardWidth = 1.96;
-    const cardHeight = 3.0;
+    const cardHeight = 3.1;
     const cardThick = 0.024;
 
     const geo = new THREE.BoxGeometry(cardWidth, cardThick, cardHeight);
@@ -398,7 +398,7 @@ export class TableScene {
         this.cardsMap.set(trumpCard.id, entry);
       }
       // Positioned so its right face and rank index stick out cleanly from under the deck
-      entry.targetPos.set(-3.7, 0.05, -0.5);
+      entry.targetPos.set(-2.0, 0.06, -0.5);
       entry.targetRot.set(0, Math.PI / 2, 0);
     }
 
@@ -426,7 +426,7 @@ export class TableScene {
         };
         this.cardsMap.set(deckId, entry);
       }
-      entry.targetPos.set(-4.4, 0.065 + deckCount * 0.003, -0.5);
+      entry.targetPos.set(-4.9, 0.09 + deckCount * 0.003, -0.5);
       entry.targetRot.set(Math.PI, 0, 0.04);
     }
 

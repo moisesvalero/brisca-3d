@@ -5,7 +5,7 @@ const loader = new THREE.TextureLoader();
 const textureCache = new Map<string, THREE.Texture>();
 
 export function getCardTexture(card: Card): THREE.Texture {
-  const url = `/cards/${card.suit}_${card.rank}.png`;
+  const url = `/cards/${card.suit}_${card.rank}.webp`;
   if (textureCache.has(url)) {
     return textureCache.get(url)!;
   }
@@ -15,12 +15,14 @@ export function getCardTexture(card: Card): THREE.Texture {
   texture.generateMipmaps = true;
   texture.minFilter = THREE.LinearMipmapLinearFilter;
   texture.magFilter = THREE.LinearFilter;
+  // Keep the old paper grain sharp when cards are seen at an angle.
+  texture.anisotropy = 8;
   textureCache.set(url, texture);
   return texture;
 }
 
 export function getCardBackTexture(): THREE.Texture {
-  const url = "/cards/reverso.png";
+  const url = "/cards/reverso.webp";
   if (textureCache.has(url)) {
     return textureCache.get(url)!;
   }
@@ -30,6 +32,8 @@ export function getCardBackTexture(): THREE.Texture {
   texture.generateMipmaps = true;
   texture.minFilter = THREE.LinearMipmapLinearFilter;
   texture.magFilter = THREE.LinearFilter;
+  // Keep the old paper grain sharp when cards are seen at an angle.
+  texture.anisotropy = 8;
   textureCache.set(url, texture);
   return texture;
 }

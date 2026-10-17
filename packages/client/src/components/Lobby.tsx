@@ -164,6 +164,9 @@ export const Lobby: React.FC<LobbyProps> = ({
             <div className="mt-1.5 text-emerald-300/90 font-semibold">
               Online gratis, sin registro. Comparte el código o el enlace.
             </div>
+            <div className="mt-1 text-[10px] text-slate-500">
+              Baraja Fournier 1878 · dominio público · Museo Fournier
+            </div>
           </div>
         </div>
       </div>

@@ -15,7 +15,7 @@
 
 ## 🌟 Características
 
-- **Baraja Española (40 cartas)** con texturas procedurales en canvas.
+- **Baraja Española (40 cartas)** con el arte de la **baraja Fournier de 1878** (dominio público, Museo Fournier de Naipes), normalizada a 512×810 WebP.
 - **Estética arcade Balatro**: mesa 3D, cartas con volumen, partículas, _screen shake_ y filtro CRT.
 - **Online en tiempo real**:
   - Salas privadas con código de 4 letras y enlace directo (`?room=ABCD`).
@@ -26,6 +26,10 @@
 - **Modo Práctica (solo vs IA)** sin conexión.
 - **Audio procedural**, vibración háptica y **PWA** instalable.
 - **Accesibilidad**: mano jugable con teclado/lector de pantalla.
+
+![Baraja Fournier 1878 en la mesa 3D](docs/cards-preview.png)
+
+**Baraja:** [Fournier 1878, dominio público](CREDITS.md) · Museo Fournier de Naipes (Bibat).
 
 ---
 
