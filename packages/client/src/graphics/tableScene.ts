@@ -33,6 +33,7 @@ export class TableScene {
   private hoveredCardId: string | null = null;
   private animFrameId: number | null = null;
   private isDestroyed = false;
+  private resizeObserver: ResizeObserver | null = null;
 
   public onCardClick?: (card: Card) => void;
 
@@ -83,8 +84,14 @@ export class TableScene {
     this.setupTable();
     this.setupParticles();
 
-    // 5. Events
+    // 5. Events: window resize, orientation changes and container size.
     window.addEventListener("resize", this.onResize);
+    window.addEventListener("orientationchange", this.onResize);
+    window.visualViewport?.addEventListener("resize", this.onResize);
+    if (typeof ResizeObserver !== "undefined") {
+      this.resizeObserver = new ResizeObserver(() => this.onResize());
+      this.resizeObserver.observe(this.container);
+    }
     this.container.addEventListener("pointermove", this.onPointerMove);
     this.container.addEventListener("pointerdown", this.onPointerDown);
 
@@ -94,31 +101,50 @@ export class TableScene {
 
   private updateCameraResponsive(width: number, height: number) {
     const aspect = width / Math.max(1, height);
+    const target = new THREE.Vector3(0, 0, 0.1);
+    const basePos = new THREE.Vector3(0, 13, 9.5);
+    const baseFov = 40;
+    const maxFov = 68;
 
-    // Calculate required vertical FOV so that horizontal width [-5.5, +4.5] always fits
-    const baseFovY = 40;
-    const baseTan = Math.tan((baseFovY * Math.PI) / 360);
-
+    // Open the FOV on narrow screens, then move the camera back until both
+    // the table width (left deck) and depth (hands) fit with a safe margin.
+    let fov = baseFov;
     if (aspect < 1.5) {
-      const targetTan = baseTan * (1.5 / Math.max(0.48, aspect));
-      const neededFov = (2 * Math.atan(targetTan) * 180) / Math.PI;
-      this.camera.fov = Math.min(neededFov, 62);
-
-      // On narrow mobile screens, smoothly pull back camera height & distance
-      const mobileFactor = Math.max(0, 0.95 - aspect);
-      const camY = 13 + mobileFactor * 6.5;
-      const camZ = 9.5 + mobileFactor * 4.8;
-      this.baseCameraPos.set(0, camY, camZ);
-    } else {
-      this.camera.fov = 40;
-      this.baseCameraPos.set(0, 13, 9.5);
+      const neededFov =
+        (2 *
+          Math.atan(
+            Math.tan((baseFov * Math.PI) / 360) * (1.5 / Math.max(0.4, aspect)),
+          ) *
+          180) /
+        Math.PI;
+      fov = Math.min(Math.max(baseFov, neededFov), maxFov);
     }
 
+    const vfov = (fov * Math.PI) / 180;
+    const hfov = 2 * Math.atan(Math.tan(vfov / 2) * aspect);
+    const baseDistance = basePos.distanceTo(target);
+    // Deck at x=-4.7 (left edge -5.68); rail at ±5.25; hand near z=+5.5.
+    const fitHalfWidth = 6.9;
+    const fitHalfDepth = 6.4;
+    const distanceForWidth = fitHalfWidth / Math.tan(hfov / 2);
+    const distanceForDepth = fitHalfDepth / Math.tan(vfov / 2);
+    const distance = Math.max(baseDistance, distanceForWidth, distanceForDepth);
+
+    this.baseCameraPos
+      .copy(basePos)
+      .sub(target)
+      .multiplyScalar(distance / baseDistance)
+      .add(target);
+
+    this.camera.fov = fov;
     this.camera.aspect = aspect;
     this.camera.position.copy(this.baseCameraPos);
-    this.camera.lookAt(0, 0, 0.1);
+    this.camera.lookAt(target);
     this.camera.updateProjectionMatrix();
+
     if (this.renderer) {
+      // Retina/OLED sharpness without letting a phone GPU render at 3x/4x.
+      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
       this.renderer.setSize(width, height);
     }
   }
@@ -433,7 +459,7 @@ export class TableScene {
       const spreadX = count === 2 ? 3.4 : 3.0;
       const offsetX = (idx - (count - 1) / 2) * spreadX;
       const fan = idx - (count - 1) / 2;
-      const baseZ = 4.9 + (count === 3 && idx === 1 ? 0.08 : 0);
+      const baseZ = 5.2 + (count === 3 && idx === 1 ? 0.08 : 0);
       const baseY = 1.5 + (count === 3 && idx === 1 ? 0.1 : 0);
       const tilt = THREE.MathUtils.degToRad(66);
       const yaw = fan * -0.1;
@@ -651,8 +677,10 @@ export class TableScene {
   };
 
   private onResize = () => {
+    if (this.isDestroyed) return;
     const width = this.container.clientWidth || window.innerWidth || 800;
     const height = this.container.clientHeight || window.innerHeight || 600;
+    if (width < 2 || height < 2) return;
     this.updateCameraResponsive(width, height);
   };
 
@@ -727,6 +755,10 @@ export class TableScene {
       this.animFrameId = null;
     }
     window.removeEventListener("resize", this.onResize);
+    window.removeEventListener("orientationchange", this.onResize);
+    window.visualViewport?.removeEventListener("resize", this.onResize);
+    this.resizeObserver?.disconnect();
+    this.resizeObserver = null;
     this.container.removeEventListener("pointermove", this.onPointerMove);
     this.container.removeEventListener("pointerdown", this.onPointerDown);
     this.renderer.dispose();
