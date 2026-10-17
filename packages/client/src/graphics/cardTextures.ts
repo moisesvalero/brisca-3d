@@ -3,7 +3,7 @@ import { Card } from "@brisca/core";
 
 // Bump when the card art changes so clients and the PWA cache fetch the
 // restored versions instead of serving the previous deck.
-const CARD_VERSION = "6";
+const CARD_VERSION = "7";
 
 const loader = new THREE.TextureLoader();
 const textureCache = new Map<string, THREE.Texture>();

@@ -372,7 +372,7 @@ export class TableScene {
     const backTex = getCardBackTexture();
 
     const edgeMat = new THREE.MeshStandardMaterial({
-      color: "#faf8f5",
+      color: "#c9c4b8",
       roughness: 0.45,
     });
     const frontMat = new THREE.MeshStandardMaterial({
