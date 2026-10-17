@@ -11,6 +11,7 @@ import { WaitingRoom } from "./components/WaitingRoom.js";
 import { GameOverModal } from "./components/GameOverModal.js";
 import { Toast, ToastTone } from "./components/Toast.js";
 import { ConfirmDialog } from "./components/ConfirmDialog.js";
+import { InstallBanner } from "./components/InstallBanner.js";
 import { sounds } from "./audio/soundManager.js";
 import { Card, canSwapTrump } from "@brisca/core";
 import type { CloseReason, RoomInfoPayload } from "@brisca/session";
@@ -327,6 +328,8 @@ export const App: React.FC = () => {
           busy={busy}
         />
       )}
+
+      <InstallBanner show={view === "menu"} />
 
       {view === "waiting" && (
         <WaitingRoom

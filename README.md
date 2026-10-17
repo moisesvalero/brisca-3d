@@ -26,6 +26,7 @@
 - **Modo Práctica (solo vs IA)** sin conexión.
 - **Audio procedural**, vibración háptica y **PWA** instalable.
 - **Accesibilidad**: mano jugable con teclado/lector de pantalla.
+- **Instalable en iOS y Android:** banner en móvil con guía para Safari y prompt nativo en Android/Chrome.
 
 ![Baraja Fournier 1878 en la mesa 3D](docs/cards-preview.png)
 

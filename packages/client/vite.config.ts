@@ -18,8 +18,11 @@ export default defineConfig({
         background_color: "#0c0e14",
         display: "standalone",
         orientation: "any",
+        id: "/",
         start_url: "/",
         scope: "/",
+        categories: ["games", "entertainment"],
+        prefer_related_applications: false,
         icons: [
           {
             src: "/pwa-192x192.png",

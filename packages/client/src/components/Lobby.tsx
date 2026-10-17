@@ -48,8 +48,8 @@ export const Lobby: React.FC<LobbyProps> = ({
   };
 
   return (
-    <div className="absolute inset-0 flex items-center justify-center p-4 z-30 bg-slate-950/80 backdrop-blur-md">
-      <div className="w-full max-w-md bg-slate-900/90 border border-amber-500/30 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden">
+    <div className="absolute inset-0 flex items-center justify-center p-4 pb-28 sm:pb-4 z-30 bg-slate-950/80 backdrop-blur-md">
+      <div className="w-full max-w-md max-h-[calc(100dvh-8rem)] overflow-y-auto overflow-x-hidden bg-slate-900/90 border border-amber-500/30 rounded-3xl p-6 sm:p-8 shadow-2xl relative sm:max-h-none sm:overflow-hidden">
         <div className="absolute -top-12 -right-12 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
 
         <div className="text-center mb-6">
