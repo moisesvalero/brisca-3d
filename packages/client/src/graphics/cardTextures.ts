@@ -1,11 +1,15 @@
 import * as THREE from "three";
 import { Card } from "@brisca/core";
 
+// Bump when the card art changes so clients and the PWA cache fetch the
+// restored versions instead of serving the previous deck.
+const CARD_VERSION = "3";
+
 const loader = new THREE.TextureLoader();
 const textureCache = new Map<string, THREE.Texture>();
 
 export function getCardTexture(card: Card): THREE.Texture {
-  const url = `/cards/${card.suit}_${card.rank}.webp`;
+  const url = `/cards/${card.suit}_${card.rank}.webp?v=${CARD_VERSION}`;
   if (textureCache.has(url)) {
     return textureCache.get(url)!;
   }
@@ -22,7 +26,7 @@ export function getCardTexture(card: Card): THREE.Texture {
 }
 
 export function getCardBackTexture(): THREE.Texture {
-  const url = "/cards/reverso.webp";
+  const url = `/cards/reverso.webp?v=${CARD_VERSION}`;
   if (textureCache.has(url)) {
     return textureCache.get(url)!;
   }

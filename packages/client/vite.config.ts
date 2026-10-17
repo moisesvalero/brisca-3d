@@ -44,7 +44,7 @@ export default defineConfig({
         globIgnores: ["_worker.js", "sw.js", "workbox-*.js"],
         runtimeCaching: [
           {
-            urlPattern: /\/cards\/.*\.webp$/,
+            urlPattern: /\/cards\/.*\.webp(?:\?.*)?$/,
             handler: "CacheFirst",
             options: {
               cacheName: "brisca-cards",
