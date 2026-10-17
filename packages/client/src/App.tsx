@@ -12,6 +12,7 @@ import { GameOverModal } from "./components/GameOverModal.js";
 import { Toast, ToastTone } from "./components/Toast.js";
 import { ConfirmDialog } from "./components/ConfirmDialog.js";
 import { InstallBanner } from "./components/InstallBanner.js";
+import { RulesModal } from "./components/RulesModal.js";
 import { sounds } from "./audio/soundManager.js";
 import { Card, canSwapTrump } from "@brisca/core";
 import type { CloseReason, RoomInfoPayload } from "@brisca/session";
@@ -59,6 +60,7 @@ export const App: React.FC = () => {
   } | null>(null);
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [confirmLeave, setConfirmLeave] = useState(false);
+  const [rulesOpen, setRulesOpen] = useState(false);
   const [roomClosedMessage, setRoomClosedMessage] = useState<string | null>(
     null,
   );
@@ -77,6 +79,9 @@ export const App: React.FC = () => {
       tone === "error" ? 7_000 : 5_000,
     );
   }, []);
+
+  const openRules = useCallback(() => setRulesOpen(true), []);
+  const closeRules = useCallback(() => setRulesOpen(false), []);
 
   const resetToMenu = useCallback(() => {
     setView("menu");
@@ -326,6 +331,7 @@ export const App: React.FC = () => {
           onCreate={handleCreate}
           onJoin={handleJoin}
           onPlaySolo={handleSolo}
+          onOpenRules={openRules}
           inviteCode={inviteCode}
           busy={busy}
         />
@@ -358,6 +364,7 @@ export const App: React.FC = () => {
             onToggleCRT={() => setCrtEnabled(!crtEnabled)}
             onSwapTrump={handleSwapTrump}
             onLeave={() => setConfirmLeave(true)}
+            onOpenRules={openRules}
             onPlayCard={playCardFromUi}
           />
           {gameState.phase === "GAME_OVER" && (
@@ -404,6 +411,8 @@ export const App: React.FC = () => {
           onConfirm={() => setRoomClosedMessage(null)}
         />
       )}
+
+      <RulesModal open={rulesOpen} onClose={closeRules} />
     </div>
   );
 };

@@ -10,6 +10,7 @@ import {
   Check,
   WifiOff,
   Wifi,
+  BookOpen,
 } from "lucide-react";
 import { ClientState, ConnectionStatus } from "../network/gameClient.js";
 import type { Card } from "@brisca/core";
@@ -26,6 +27,7 @@ interface HUDProps {
   onToggleCRT: () => void;
   onSwapTrump: () => void;
   onLeave: () => void;
+  onOpenRules: () => void;
   onPlayCard: (card: Card) => void;
 }
 
@@ -52,6 +54,7 @@ export const HUD: React.FC<HUDProps> = ({
   onToggleCRT,
   onSwapTrump,
   onLeave,
+  onOpenRules,
   onPlayCard,
 }) => {
   const [copied, setCopied] = useState(false);
@@ -191,6 +194,17 @@ export const HUD: React.FC<HUDProps> = ({
                   crtEnabled ? "text-amber-400" : "text-slate-500"
                 }`}
               />
+            </button>
+            <button
+              onClick={(event) => {
+                event.currentTarget.focus();
+                onOpenRules();
+              }}
+              className="p-1.5 sm:p-2 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 transition"
+              title="Reglas de la Brisca"
+              aria-label="Ver reglas de la Brisca"
+            >
+              <BookOpen className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
             <button
               onClick={onLeave}

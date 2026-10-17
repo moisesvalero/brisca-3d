@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { Users, Bot, Sparkles, ArrowRight } from "lucide-react";
+import { Users, Bot, Sparkles, ArrowRight, BookOpen } from "lucide-react";
 import { readStoredName, storeName } from "../network/config.js";
 
 interface LobbyProps {
   onCreate: (name: string) => void;
   onJoin: (code: string, name: string) => void;
   onPlaySolo: (name: string) => void;
+  onOpenRules: () => void;
   inviteCode?: string | null;
   busy?: boolean;
 }
@@ -14,6 +15,7 @@ export const Lobby: React.FC<LobbyProps> = ({
   onCreate,
   onJoin,
   onPlaySolo,
+  onOpenRules,
   inviteCode,
   busy = false,
 }) => {
@@ -149,6 +151,18 @@ export const Lobby: React.FC<LobbyProps> = ({
             >
               <Bot className="w-4 h-4 text-emerald-400" />
               <span>Jugar Solo vs IA (Modo Práctica)</span>
+            </button>
+
+            <button
+              onClick={(event) => {
+                event.currentTarget.focus();
+                onOpenRules();
+              }}
+              disabled={busy}
+              className="w-full flex items-center justify-center gap-2 bg-transparent hover:bg-amber-500/10 disabled:opacity-60 text-amber-200 font-bold py-2.5 rounded-2xl border border-amber-500/25 transition"
+            >
+              <BookOpen className="w-4 h-4" />
+              <span>Ver reglas de la Brisca</span>
             </button>
           </div>
 
