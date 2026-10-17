@@ -156,8 +156,8 @@ export class TableScene {
       Math.PI / 4,
       0.55,
     );
-    this.trumpSpotlight.position.set(-2.0, 6, -0.5);
-    this.trumpSpotlight.target.position.set(-2.0, 0, -0.5);
+    this.trumpSpotlight.position.set(-4.0, 6, -0.5);
+    this.trumpSpotlight.target.position.set(-4.0, 0, -0.5);
     this.scene.add(this.trumpSpotlight);
     this.scene.add(this.trumpSpotlight.target);
   }
@@ -428,19 +428,23 @@ export class TableScene {
 
       entry.isPlayerHand = true;
       const count = myHand.length;
-      const spreadX = 2.2;
+      // Held hand: the cards stand up in a fan at the bottom edge, facing the
+      // camera. The table groups (trick, deck, trump, rival) stay flat.
+      const spreadX = count === 2 ? 3.4 : 3.0;
       const offsetX = (idx - (count - 1) / 2) * spreadX;
-
-      const baseZ = 2.4;
-      // baseY elevated so that tilted cards (-0.20 rad) never penetrate the table (y=0)
-      const baseY = 0.44 + idx * 0.015;
+      const fan = idx - (count - 1) / 2;
+      const baseZ = 4.9 + (count === 3 && idx === 1 ? 0.08 : 0);
+      const baseY = 1.5 + (count === 3 && idx === 1 ? 0.1 : 0);
+      const tilt = THREE.MathUtils.degToRad(66);
+      const yaw = fan * -0.1;
+      const roll = fan * -0.07;
 
       if (entry.isHovered && isMyTurn) {
-        entry.targetPos.set(offsetX, baseY + 0.45, baseZ - 0.35);
-        entry.targetRot.set(-0.3, 0, (idx - (count - 1) / 2) * -0.03);
+        entry.targetPos.set(offsetX, baseY + 0.35, baseZ + 0.25);
+        entry.targetRot.set(THREE.MathUtils.degToRad(50), yaw, roll);
       } else {
         entry.targetPos.set(offsetX, baseY, baseZ);
-        entry.targetRot.set(-0.2, 0, (idx - (count - 1) / 2) * -0.05);
+        entry.targetRot.set(tilt, yaw, roll);
       }
     });
 
@@ -465,11 +469,21 @@ export class TableScene {
         this.cardsMap.set(oppId, entry);
       }
 
-      const spreadX = 2.2;
+      // Rival hand: a held fan of backs at the far edge, mirroring the player.
+      const spreadX = opponentCount === 2 ? 3.4 : 3.0;
       const offsetX = (i - (opponentCount - 1) / 2) * spreadX;
-      entry.targetPos.set(offsetX, 0.12 + i * 0.02, -3.8);
-      // Face down
-      entry.targetRot.set(Math.PI, 0, 0);
+      const fan = i - (opponentCount - 1) / 2;
+      entry.targetPos.set(
+        offsetX,
+        1.35 + (opponentCount === 3 && i === 1 ? 0.1 : 0),
+        -3.6,
+      );
+      // Face down + tilt back, so the back faces the camera.
+      entry.targetRot.set(
+        Math.PI + THREE.MathUtils.degToRad(66),
+        fan * 0.1,
+        fan * 0.07,
+      );
     }
 
     // 3. Trump card (left, face up at 90 deg)
@@ -489,37 +503,44 @@ export class TableScene {
         };
         this.cardsMap.set(trumpCard.id, entry);
       }
-      // Positioned so its right face and rank index stick out cleanly from under the deck
-      entry.targetPos.set(-2.0, 0.06, -0.5);
+      // The trump is face up UNDER the deck: the stack covers its left side
+      // and the right part (rank/face) peeks out, as in the real game.
+      entry.targetPos.set(-4.0, 0.02, -0.5);
       entry.targetRot.set(0, Math.PI / 2, 0);
     }
 
-    // 4. Deck stack (on top of trump card, crossed)
+    // 4. Deck stack (three cards on top of the face-up trump)
     if (deckCount > 0) {
-      const deckId = "deck_stack";
-      activeIds.add(deckId);
-      let entry = this.cardsMap.get(deckId);
-      if (!entry) {
-        const dummyCard: Card = {
-          id: deckId,
-          suit: "copas",
-          rank: 1,
-          points: 0,
-        };
-        const mesh = this.createCardMesh(dummyCard);
-        this.scene.add(mesh);
-        entry = {
-          mesh,
-          card: dummyCard,
-          targetPos: new THREE.Vector3(),
-          targetRot: new THREE.Euler(),
-          isHovered: false,
-          isPlayerHand: false,
-        };
-        this.cardsMap.set(deckId, entry);
+      for (let layer = 0; layer < 3; layer += 1) {
+        const deckId = layer === 0 ? "deck_stack" : `deck_stack_${layer}`;
+        activeIds.add(deckId);
+        let entry = this.cardsMap.get(deckId);
+        if (!entry) {
+          const dummyCard: Card = {
+            id: deckId,
+            suit: "copas",
+            rank: 1,
+            points: 0,
+          };
+          const mesh = this.createCardMesh(dummyCard);
+          this.scene.add(mesh);
+          entry = {
+            mesh,
+            card: dummyCard,
+            targetPos: new THREE.Vector3(),
+            targetRot: new THREE.Euler(),
+            isHovered: false,
+            isPlayerHand: false,
+          };
+          this.cardsMap.set(deckId, entry);
+        }
+        entry.targetPos.set(
+          -4.7 + layer * 0.025,
+          0.046 + layer * 0.026 + Math.min(deckCount, 30) * 0.0003,
+          -0.5 + layer * 0.02,
+        );
+        entry.targetRot.set(Math.PI, 0, 0.04 + layer * 0.012);
       }
-      entry.targetPos.set(-4.9, 0.09 + deckCount * 0.003, -0.5);
-      entry.targetRot.set(Math.PI, 0, 0.04);
     }
 
     // 5. Current Trick (Center table)
@@ -539,8 +560,9 @@ export class TableScene {
         };
         this.cardsMap.set(currentTrick.leadCard.id, entry);
       }
-      entry.targetPos.set(-0.95, 0.08, -0.5);
-      entry.targetRot.set(0, 0, -0.05);
+      // Trick cards lie flat and side by side in the centre zone.
+      entry.targetPos.set(-0.35, 0.015, -0.5);
+      entry.targetRot.set(0, 0, -0.03);
     }
 
     if (currentTrick.followCard) {
@@ -559,8 +581,8 @@ export class TableScene {
         };
         this.cardsMap.set(currentTrick.followCard.id, entry);
       }
-      entry.targetPos.set(0.95, 0.1, -0.5);
-      entry.targetRot.set(0, 0, 0.05);
+      entry.targetPos.set(0.35, 0.045, -0.55);
+      entry.targetRot.set(0, 0, 0.03);
     }
 
     // Cleanup cards no longer in play

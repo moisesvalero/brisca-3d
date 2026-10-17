@@ -6,7 +6,7 @@
 
 - Fuente: [Wikimedia Commons — Heraclio Fournier's 1878 card deck](https://commons.wikimedia.org/wiki/Category:Heraclio_Fournier%E2%80%99s_1878_card_deck)
 - Licencia: **dominio público** (los 42 archivos originales están marcados como tal).
-- Adaptación para el juego: recorte de márgenes, normalización a 512×810, restauración de papel y color (nivel B) y conversión a WebP.
+- Adaptación para el juego: recorte de márgenes, normalización a 512×810, restauración de papel y color (nivel B), limpieza del agujero de escaneo de la Sota de bastos y conversión a WebP. El reverso es un diseño original de inspiración clásica española (rojo y oro); no reproduce el dorso actual de Fournier, que sigue protegido. El reverso escaneado de 1878 es un patrón floral muy denso que produce muaré a tamaño pequeño.
 - «Fournier» es una marca de Naipes Heraclio Fournier, S.A. Este proyecto no está afiliado ni patrocinado por Fournier; usa una baraja histórica en dominio público.
 
 ## Código, 3D y sonido
