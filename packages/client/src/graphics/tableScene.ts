@@ -307,7 +307,7 @@ export class TableScene {
   public updateGameState(
     myHand: Card[],
     opponentCount: number,
-    trumpCard: Card,
+    trumpCard: Card | null,
     deckCount: number,
     currentTrick: { leadCard?: Card; followCard?: Card },
     isMyTurn: boolean,
@@ -345,10 +345,10 @@ export class TableScene {
 
       if (entry.isHovered && isMyTurn) {
         entry.targetPos.set(offsetX, baseY + 0.45, baseZ - 0.35);
-        entry.targetRot.set(-0.30, 0, (idx - (count - 1) / 2) * -0.03);
+        entry.targetRot.set(-0.3, 0, (idx - (count - 1) / 2) * -0.03);
       } else {
         entry.targetPos.set(offsetX, baseY, baseZ);
-        entry.targetRot.set(-0.20, 0, (idx - (count - 1) / 2) * -0.05);
+        entry.targetRot.set(-0.2, 0, (idx - (count - 1) / 2) * -0.05);
       }
     });
 

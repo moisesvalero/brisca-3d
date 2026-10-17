@@ -2,132 +2,197 @@
 
 > **Juego de Brisca Española en 3D Online para 2 jugadores, instalable como PWA y con estética arcade inspirada en _Balatro_.**
 
+**Online:** <https://brisca-3d.vercel.app> · **Práctica:** <https://brisca-3d.vercel.app/?solo=1>
+
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue?style=flat-square&logo=typescript)
 ![React](https://img.shields.io/badge/React-19.0-61dafb?style=flat-square&logo=react)
 ![Three.js](https://img.shields.io/badge/Three.js-0.174-black?style=flat-square&logo=three.js)
-![pnpm](https://img.shields.io/badge/pnpm-workspace-orange?style=flat-square&logo=pnpm)
+![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-F38020?style=flat-square&logo=cloudflare)
+![Vercel](https://img.shields.io/badge/Vercel-Hobby-black?style=flat-square&logo=vercel)
 ![PWA](https://img.shields.io/badge/PWA-Ready-success?style=flat-square)
 
 ---
 
-## 🌟 Características Principales
+## 🌟 Características
 
-- **Baraja Española Tradicional (40 cartas):** Generador procedural de texturas en alta resolución en HTML5 Canvas (sin descargas externas pesadas ni dependencias de internet). Incluye Oros, Copas, Espadas y Bastos con acabados dorados y relieves.
-- **Estética Arcade "Balatro Vibe":**
-  - Tapete de fieltro esmeralda en perspectiva isométrica con iluminación dinámica cenital.
-  - Cartas 3D con grosor geométrico real, biseles y animación de abanico interactivo en mano.
-  - Partículas 3D (chispas de oro al ganar bazas importantes con Ases o Triunfos).
-  - _Screen shake_ (sacudida de cámara) al jugar cartas pesadas.
-  - Filtro opcional CRT con scanlines y viñeta retro.
-- **Multijugador en Tiempo Real sin Fricción:**
-  - Salas privadas mediante código de 4 letras (ej. `B7X2`).
-  - Enlace directo para compartir por WhatsApp/Telegram (sin logins ni registros obligatorios).
-  - Arquitectura cliente-servidor autoritativa con ofuscación de la mano rival (anti-trampas).
-- **Modo Práctica (Solo vs IA):** Motor inteligente integrado en el cliente para jugar inmediatamente sin necesidad de conexión o esperando a un rival.
-- **Sonido y Sensaciones:**
-  - Audio procedural sintetizado en tiempo real con **Web Audio API** (reparto, impacto de cartas, tintineo de monedas/oros, fanfarria de victoria).
-  - **Vibración háptica** en móviles compatibles al lanzar y ganar bazas.
-- **PWA (Progressive Web App):** Instalable en la pantalla de inicio en iOS y Android con Service Worker (Workbox) y modo de pantalla completa `standalone`.
+- **Baraja Española (40 cartas)** con texturas procedurales en canvas.
+- **Estética arcade Balatro**: mesa 3D, cartas con volumen, partículas, _screen shake_ y filtro CRT.
+- **Online en tiempo real**:
+  - Salas privadas con código de 4 letras y enlace directo (`?room=ABCD`).
+  - Servidor **autoritativo**: la mano rival nunca se envía al cliente.
+  - **Reconexión automática** con token de sesión y 60 s de gracia.
+  - Aviso de desconexión retrasado 2,5 s para que las reconexiones cortas sean invisibles.
+  - **Revancha** cuando ambos jugadores la aceptan.
+- **Modo Práctica (solo vs IA)** sin conexión.
+- **Audio procedural**, vibración háptica y **PWA** instalable.
+- **Accesibilidad**: mano jugable con teclado/lector de pantalla.
 
 ---
 
-## 📜 Reglas Implementadas (Brisca Clásica Española)
+## 📜 Reglas implementadas
 
-- **Cartas en juego:** 40 cartas (Oros, Copas, Espadas, Bastos).
-- **Puntuación oficial (Total: 120 puntos):**
-  - **As:** 11 puntos
-  - **Tres:** 10 puntos
-  - **Rey (12):** 4 puntos
-  - **Caballo (11):** 3 puntos
-  - **Sota (10):** 2 puntos
-  - **Cartas blancas (2, 4, 5, 6, 7):** 0 puntos
-  - _Condición de victoria:_ Gana el jugador que consiga **más de 60 puntos** (o empate a 60).
-- **Mecánica de Ronda:**
-  - Reparto inicial de 3 cartas por jugador y carta de triunfo descubierta bajo el mazo.
-  - No es obligatorio asistir ni superar palo (regla clásica de brisca).
-  - El ganador de cada baza se lleva las cartas y roba primero del mazo.
-  - **Regla del cambio de triunfo (7 y 2):** Si la carta de triunfo descubierta es superior a 7 (con puntos), el jugador con el 7 de triunfo puede cambiarla; si es blanca (≤ 7), se puede cambiar con el 2 de triunfo antes de agotar el mazo.
+- **40 cartas** (oros, copas, espadas, bastos).
+- **Puntuación oficial (total 120):** As = 11 · Tres = 10 · Rey = 4 · Caballo = 3 · Sota = 2 · blancas = 0.
+- Gana quien consiga **más de 60 puntos**; a 60 exactos, empate.
+- Reparto de 3 cartas por jugador y triunfo descubierto bajo el mazo.
+- No es obligatorio asistir ni superar palo.
+- El ganador de la baza roba primero; al agotarse el mazo se recoge el triunfo.
+- **Regla del 7 y 2** para cambiar el triunfo mientras quede mazo.
 
 ---
 
-## 🏗️ Arquitectura del Monorepo
+## 🏗️ Arquitectura
 
-El proyecto está estructurado con workspaces de `pnpm`:
+```text
+Navegador  ──wss──▶  Vercel (PWA + /api/ws)  ──wss──▶  Cloudflare Worker
+                                                         │
+                                                         ▼
+                                                Durable Object (BriscaRoom)
+                                                         │
+                                                         ▼
+                                          @brisca/session (GameServer)
+                                                         │
+                                                         ▼
+                                                    @brisca/core
+```
+
+- **Cliente + puente WebSocket:** Vercel (plan Hobby). El cliente está en `brisca-3d.vercel.app` y `/api/ws` reenvía el socket al servidor de juego.
+- **Servidor de juego autoritativo:** Cloudflare Worker + Durable Object. Guarda las salas, los turnos y las manos; el cliente nunca ve la mano rival.
+- **`@brisca/session`:** lógica compartida entre el servidor Node local y el Durable Object (sin duplicar reglas).
+- **`@brisca/core`:** motor puro de reglas con tests.
+
+El puente de Vercel existe porque algunos ISP bloquean el rango de IPs de `workers.dev`/`pages.dev`. Vercel sí es accesible y su red habla con Cloudflare; el Durable Object sigue siendo la única autoridad.
+
+### Estructura
 
 ```text
 brisca-3d/
+├── api/ws.ts          # Puente WebSocket de Vercel
 ├── packages/
-│   ├── core/      # Motor puro en TypeScript: reglas, 40 cartas, cálculo de puntos, bazas y TDD
-│   ├── server/    # Servidor WebSocket en Node.js (ws): gestión de salas de 4 letras y sincronización
-│   └── client/    # Frontend PWA: React 19, Three.js 3D, Web Audio API y Tailwind CSS
+│   ├── core/          # Baraja, reglas, bazas, puntos (14 tests)
+│   ├── session/       # Salas, turnos, reconexión, protocolo (11 tests)
+│   ├── server/        # Servidor Node + ws para desarrollo local
+│   ├── worker/        # Cloudflare Worker + Durable Object
+│   └── client/        # React 19 + Three.js + Tailwind + PWA
 ├── pnpm-workspace.yaml
-└── package.json
+└── vercel.json
 ```
 
 ---
 
-## 🚀 Puesta en Marcha en Local
+## 🚀 Desarrollo local
 
-### Requisitos
-
-- **Node.js** v20+ o v22+
-- **pnpm** v10+ u 11+
-
-### Instalación de dependencias
+Requisitos: **Node 20+** y **pnpm 10+** (`corepack enable`).
 
 ```bash
 pnpm install
-```
-
-### Ejecución en Modo Desarrollo
-
-Puedes arrancar todo el monorepo en paralelo:
-
-```bash
-# Arrancar servidor WebSocket y cliente Vite
 pnpm dev
 ```
 
-O arrancar cada paquete por separado:
+- Cliente: <http://localhost:3000>
+- Servidor WebSocket: `ws://localhost:8080` · health: <http://localhost:8080/health>
+
+Abre dos pestañas: una crea la sala y la otra se une con el código. Práctica: <http://localhost:3000/?solo=1>.
+
+### Worker de producción en local
 
 ```bash
-# Terminal 1: Servidor WebSocket (puerto 8080)
-pnpm --filter @brisca/server dev
-
-# Terminal 2: Cliente PWA en Vite (puerto 3000)
-pnpm --filter @brisca/client dev
+pnpm dev:worker   # wrangler dev en http://127.0.0.1:8787
 ```
 
-- **Cliente:** [http://localhost:3000](http://localhost:3000)
-- **Servidor WebSocket:** `ws://localhost:8080`
+Abre el cliente con `http://localhost:3000/?ws=ws://127.0.0.1:8787/ws`.
 
----
-
-## 🧪 Tests y Calidad de Código
-
-El proyecto sigue una estricta disciplina de pruebas y tipado estático:
+### Scripts
 
 ```bash
-# Ejecutar toda la batería de tests unitarios e integración (Vitest)
-pnpm test
-
-# Ejecutar el linter ultra rápido (Oxlint)
-pnpm lint
-
-# Formatear el código con Prettier
-pnpm format
-
-# Compilar para producción (TypeScript + Vite)
-pnpm build
+pnpm test         # core + session + servidor
+pnpm check        # TypeScript en todos los paquetes
+pnpm lint         # oxlint
+pnpm format       # prettier
+pnpm build        # cliente + servidor Node
+pnpm deploy:worker# Cloudflare: worker + assets
+pnpm deploy:web   # Vercel: cliente + /api/ws
+pnpm release      # ambos
 ```
 
 ---
 
-## 📦 Despliegue en Producción
+## 🌍 Despliegue (gratis)
 
-1. **Cliente PWA:** La carpeta `packages/client/dist` generada con `pnpm build` es 100% estática y puede desplegarse en **Vercel**, **Cloudflare Pages**, **Netlify** o cualquier CDN estático.
-2. **Servidor WebSocket:** `packages/server` puede desplegarse en cualquier entorno Node.js que soporte WebSockets persistentes (Render, Railway, Fly.io o VPS Docker).
-   - Configura en el cliente la variable de entorno: `VITE_WS_URL=wss://tu-servidor.dominio.com`.
+| Componente                     | Plataforma              | Plan           |
+| ------------------------------ | ----------------------- | -------------- |
+| PWA + puente WebSocket         | Vercel                  | Hobby (gratis) |
+| Salas + WebSocket autoritativo | Cloudflare Workers + DO | Free (gratis)  |
+
+### Cloudflare
+
+```bash
+# Una vez: autoriza Wrangler (navegador) o exporta CLOUDFLARE_API_TOKEN
+pnpm --filter @brisca/worker exec wrangler login
+pnpm deploy:worker
+```
+
+El Worker queda en `https://brisca-3d-ws.<tu-subdominio>.workers.dev` (health: `/health`).
+
+Si cambias el nombre o el subdominio, actualiza `WS_UPSTREAM`:
+
+- En local: variable de entorno.
+- En Vercel: _Project → Settings → Environment Variables_.
+- O edita el valor por defecto en `api/ws.ts`.
+
+### Vercel
+
+```bash
+pnpm dlx vercel@latest login   # si no tienes sesión
+pnpm deploy:web
+```
+
+El cliente detecta automáticamente el puente:
+
+- `*.vercel.app` → `wss://<host>/api/ws`
+- `*.workers.dev` / `*.pages.dev` → `wss://<host>/ws`
+- Local → `ws://<host>:8080`
+- `config.json` o `VITE_WS_URL` mandan si están definidos.
+
+### Límites del plan gratuito
+
+- **Vercel Hobby:** cada conexión WebSocket dura como máximo **300 s**. El cliente reconecta solo y el Durable Object conserva la sala 60 s; el aviso al rival se retrasa 2,5 s, así que la partida continúa sin que se note.
+- **Cloudflare Free:** 100.000 peticiones/día y 13.000 GB-s/día. Una partida completa usa ~100 mensajes; sobran partidas.
+- El token de Cloudflare solo se usa para desplegar. Puedes revocarlo en <https://dash.cloudflare.com/profile/api-tokens>.
+
+---
+
+## 🔐 Configuración
+
+| Variable      | Dónde                | Uso                                                    |
+| ------------- | -------------------- | ------------------------------------------------------ |
+| `WS_UPSTREAM` | Vercel               | URL `wss` del Worker (por defecto la de este proyecto) |
+| `VITE_WS_URL` | Vercel / `.env`      | URL del WebSocket en build                             |
+| `wsUrl`       | `public/config.json` | URL en runtime (prioridad)                             |
+| `PORT`        | Servidor Node        | Puerto HTTP/WS (8080)                                  |
+| `?ws=`        | URL del cliente      | Override puntual para pruebas                          |
+| `?room=ABCD`  | URL del cliente      | Invitación directa a una sala                          |
+| `?solo=1`     | URL del cliente      | Modo práctica                                          |
+
+El token de reconexión se guarda en `sessionStorage` por sala; el apodo en `localStorage`. No hay cuentas ni datos personales en el servidor.
+
+---
+
+## 🧪 Calidad
+
+- **30 tests**: motor, sesión y servidor (partida completa, revancha, reconexión, sala llena, rate limit, mensajes inválidos).
+- TypeScript estricto, `oxlint` y `prettier` con Husky + lint-staged.
+- CI en `.github/workflows/ci.yml`.
+- E2E manual verificado en navegador real: crear/unirse, partida completa, revancha, enlace de invitación, modo IA y reconexión.
+
+### Endurecimiento
+
+- Salas de 4 caracteres sin ambigüedades y control de colisiones.
+- Validación de turnos y cartas en el servidor (autoritativo).
+- Límite de mensaje (8 KB), rate limit por conexión y validación de tipos.
+- Token de sesión para reconectar; nadie puede ocupar una silla en gracia sin él.
+- Cierre de sala al expirar la gracia de 60 s.
+- Heartbeat ping/pong en Node; Cloudflare mantiene vivas las conexiones.
 
 ---
 

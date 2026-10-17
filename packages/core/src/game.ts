@@ -21,6 +21,7 @@ export function createGame(
     leadPlayer: initialLead,
     trumpCard,
     trumpSuit,
+    trumpTaken: false,
     deck: fullDeck,
     hands: {
       p1: handP1,
@@ -116,6 +117,7 @@ export function collectTrick(game: GameState): GameState {
     } else {
       // Last card is the trump card on table
       game.hands[loser].push(game.trumpCard);
+      game.trumpTaken = true;
     }
   }
 
@@ -174,6 +176,7 @@ export function swapTrumpCard(
   // Swap
   const oldTrump = game.trumpCard;
   game.trumpCard = card;
+  game.trumpTaken = false;
   game.hands[playerId][cardIndex] = oldTrump;
 
   return game;

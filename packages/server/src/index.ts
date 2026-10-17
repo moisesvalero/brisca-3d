@@ -1,155 +1,177 @@
+import http from "node:http";
 import { WebSocketServer, WebSocket } from "ws";
-import { generateRoomCode, Room } from "./room.js";
+import {
+  Connection,
+  GameServer,
+  GameServerOptions,
+  Room,
+} from "@brisca/session";
 
 export interface ServerInstance {
   wss: WebSocketServer;
-  close: () => Promise<void>;
+  httpServer: http.Server;
+  gameServer: GameServer;
   rooms: Map<string, Room>;
+  ready: Promise<void>;
+  close: () => Promise<void>;
 }
 
-export function createBriscaServer(port: number = 8080): ServerInstance {
-  const wss = new WebSocketServer({ port });
-  const rooms = new Map<string, Room>();
+interface AliveWebSocket extends WebSocket {
+  isAlive: boolean;
+}
 
-  wss.on("connection", (ws: WebSocket) => {
-    let currentRoom: Room | null = null;
-    let assignedPlayerId: "p1" | "p2" | null = null;
+const HEARTBEAT_MS = 30_000;
+const SWEEP_MS = 10 * 60_000;
+const ROOM_TTL_MS = 2 * 60 * 60_000;
 
-    ws.on("message", (data: string) => {
-      try {
-        const msg = JSON.parse(data.toString());
+export function createBriscaServer(
+  port: number = 8080,
+  options: GameServerOptions = {},
+): ServerInstance {
+  const gameServer = new GameServer(options);
 
-        switch (msg.type) {
-          case "CREATE_ROOM": {
-            let code = generateRoomCode();
-            while (rooms.has(code)) {
-              code = generateRoomCode();
-            }
-            const room = new Room(code);
-            rooms.set(code, room);
-            currentRoom = room;
-            assignedPlayerId = room.addPlayer(ws, msg.name || "Jugador 1");
+  const httpServer = http.createServer((req, res) => {
+    const url = new URL(req.url ?? "/", "http://localhost");
 
-            ws.send(
-              JSON.stringify({
-                type: "ROOM_CREATED",
-                payload: { roomCode: code, playerId: assignedPlayerId },
-              }),
-            );
-            break;
-          }
+    if (url.pathname === "/health") {
+      const stats = gameServer.stats();
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(
+        JSON.stringify({
+          status: "ok",
+          uptime: Math.round(process.uptime()),
+          ...stats,
+        }),
+      );
+      return;
+    }
 
-          case "JOIN_ROOM": {
-            const requestedCode = (msg.roomCode || "").toUpperCase().trim();
-            const room = rooms.get(requestedCode);
+    if (url.pathname === "/") {
+      res.writeHead(200, { "content-type": "text/plain; charset=utf-8" });
+      res.end("Brisca 3D Royale · WebSocket server\n");
+      return;
+    }
 
-            if (!room) {
-              ws.send(
-                JSON.stringify({
-                  type: "ERROR",
-                  message: `Sala ${requestedCode} no encontrada`,
-                }),
-              );
-              return;
-            }
-            if (room.isFull()) {
-              ws.send(
-                JSON.stringify({
-                  type: "ERROR",
-                  message: `La sala ${requestedCode} está llena`,
-                }),
-              );
-              return;
-            }
+    res.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
+    res.end("Not found\n");
+  });
 
-            currentRoom = room;
-            assignedPlayerId = room.addPlayer(ws, msg.name || "Jugador 2");
+  const wss = new WebSocketServer({
+    server: httpServer,
+    maxPayload: 8 * 1024,
+  });
 
-            ws.send(
-              JSON.stringify({
-                type: "ROOM_JOINED",
-                payload: {
-                  roomCode: requestedCode,
-                  playerId: assignedPlayerId,
-                },
-              }),
-            );
-
-            // Both players joined, start match!
-            room.startGame();
-            break;
-          }
-
-          case "PLAY_CARD": {
-            if (!currentRoom || !assignedPlayerId) return;
-            try {
-              currentRoom.handlePlayCard(assignedPlayerId, msg.cardId);
-            } catch (err: any) {
-              ws.send(JSON.stringify({ type: "ERROR", message: err.message }));
-            }
-            break;
-          }
-
-          case "SWAP_TRUMP": {
-            if (!currentRoom || !assignedPlayerId) return;
-            try {
-              currentRoom.handleSwapTrump(assignedPlayerId, msg.cardId);
-            } catch (err: any) {
-              ws.send(JSON.stringify({ type: "ERROR", message: err.message }));
-            }
-            break;
-          }
-
-          case "REMATCH": {
-            if (!currentRoom || !currentRoom.isFull()) return;
-            currentRoom.startGame();
-            break;
-          }
-        }
-      } catch {
-        ws.send(JSON.stringify({ type: "ERROR", message: "Mensaje inválido" }));
-      }
+  wss.on("connection", (ws: AliveWebSocket) => {
+    ws.isAlive = true;
+    ws.on("pong", () => {
+      ws.isAlive = true;
     });
 
+    const connection: Connection = {
+      send: (data: string) => {
+        if (ws.readyState === WebSocket.OPEN) ws.send(data);
+      },
+      close: (code?: number, reason?: string) => {
+        try {
+          ws.close(code, reason);
+        } catch {
+          // ignore
+        }
+      },
+    };
+
+    gameServer.connect(connection);
+
+    ws.on("message", (data) => {
+      gameServer.handleMessage(connection, data.toString());
+    });
     ws.on("close", () => {
-      if (currentRoom) {
-        const removed = currentRoom.removePlayer(ws);
-        if (removed) {
-          currentRoom.broadcast({
-            type: "PLAYER_DISCONNECTED",
-            playerId: removed,
-            message: "El otro jugador se ha desconectado.",
-          });
-        }
-        if (currentRoom.isEmpty()) {
-          rooms.delete(currentRoom.code);
-        }
-      }
+      gameServer.handleClose(connection);
+    });
+    ws.on("error", () => {
+      gameServer.handleClose(connection);
     });
   });
 
+  const heartbeat = setInterval(() => {
+    for (const client of wss.clients) {
+      const ws = client as AliveWebSocket;
+      if (!ws.isAlive) {
+        ws.terminate();
+        continue;
+      }
+      ws.isAlive = false;
+      try {
+        ws.ping();
+      } catch {
+        ws.terminate();
+      }
+    }
+  }, HEARTBEAT_MS);
+  heartbeat.unref?.();
+
+  const sweeper = setInterval(() => {
+    gameServer.sweep(ROOM_TTL_MS);
+  }, SWEEP_MS);
+  sweeper.unref?.();
+
+  const ready = new Promise<void>((resolve, reject) => {
+    httpServer.once("listening", () => resolve());
+    httpServer.once("error", reject);
+    httpServer.listen(port, "0.0.0.0");
+  });
+
+  const close = (): Promise<void> =>
+    new Promise<void>((resolve, reject) => {
+      clearInterval(heartbeat);
+      clearInterval(sweeper);
+      gameServer.closeAll();
+      for (const client of wss.clients) {
+        try {
+          client.terminate();
+        } catch {
+          // ignore
+        }
+      }
+      wss.close(() => {
+        httpServer.close((error) => {
+          if (error) reject(error);
+          else resolve();
+        });
+      });
+    });
+
   return {
     wss,
-    rooms,
-    close: () =>
-      new Promise<void>((resolve, reject) => {
-        for (const client of wss.clients) {
-          try {
-            client.terminate();
-          } catch {
-            // ignore
-          }
-        }
-        wss.close((err) => (err ? reject(err) : resolve()));
-      }),
+    httpServer,
+    gameServer,
+    rooms: gameServer.rooms,
+    ready,
+    close,
   };
 }
 
 // Start standalone if executed directly
 if (process.env.NODE_ENV !== "test" && !process.env.VITEST) {
   const PORT = Number(process.env.PORT) || 8080;
-  createBriscaServer(PORT);
-  console.log(
-    `[Brisca Server] Servidor en tiempo real escuchando en ws://localhost:${PORT}`,
-  );
+  const server = createBriscaServer(PORT);
+  server.ready
+    .then(() => {
+      console.log(
+        `[Brisca Server] WebSocket escuchando en ws://0.0.0.0:${PORT} · health http://0.0.0.0:${PORT}/health`,
+      );
+    })
+    .catch((error) => {
+      console.error("[Brisca Server] No se pudo arrancar:", error);
+      process.exit(1);
+    });
+
+  const shutdown = () => {
+    server.close().then(
+      () => process.exit(0),
+      () => process.exit(1),
+    );
+  };
+  process.on("SIGINT", shutdown);
+  process.on("SIGTERM", shutdown);
 }

@@ -1,0 +1,19 @@
+{
+  "name": "@brisca/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev:worker": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@brisca/session": "workspace:*"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261016.1",
+    "typescript": "^5.8.2",
+    "wrangler": "^4.151.1"
+  }
+}

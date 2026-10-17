@@ -32,6 +32,8 @@ export interface GameState {
   leadPlayer: PlayerId;
   trumpCard: Card;
   trumpSuit: Suit;
+  /** True once the face-up trump card has been picked up from the table. */
+  trumpTaken: boolean;
   deck: Card[];
   hands: Record<PlayerId, Card[]>;
   scores: Record<PlayerId, number>;

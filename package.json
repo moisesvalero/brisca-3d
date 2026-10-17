@@ -3,8 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@12.5.1",
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
   "scripts": {
-    "dev": "pnpm --filter \"@brisca/*\" --parallel dev",
+    "dev": "pnpm --filter @brisca/server --filter @brisca/client --parallel dev",
+    "dev:worker": "pnpm --filter @brisca/worker dev:worker",
+    "deploy:worker": "pnpm --filter @brisca/client build && pnpm --filter @brisca/worker deploy",
     "build": "pnpm --filter \"@brisca/*\" build",
     "test": "pnpm -r --if-present test",
     "check": "pnpm -r --if-present typecheck",
@@ -19,6 +25,7 @@
     ]
   },
   "devDependencies": {
+    "@types/ws": "^8.5.14",
     "husky": "^9.1.7",
     "lint-staged": "^17.6.0",
     "oxlint": "^0.15.11",

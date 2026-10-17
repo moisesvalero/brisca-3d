@@ -7,16 +7,24 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.ico", "apple-touch-icon.png", "cards/*.svg"],
+      includeAssets: [
+        "favicon-32.png",
+        "apple-touch-icon.png",
+        "cards/*.png",
+        "config.json",
+      ],
       manifest: {
         name: "Brisca 3D Royale",
         short_name: "Brisca 3D",
         description:
           "Juego de Brisca Española en 3D Online para 2 jugadores con estética Arcade Balatro",
+        lang: "es",
         theme_color: "#0c0e14",
         background_color: "#0c0e14",
         display: "standalone",
         orientation: "any",
+        start_url: "/",
+        scope: "/",
         icons: [
           {
             src: "/pwa-192x192.png",
@@ -32,7 +40,24 @@ export default defineConfig({
             src: "/pwa-512x512.png",
             sizes: "512x512",
             type: "image/png",
-            purpose: "any maskable",
+            purpose: "maskable",
+          },
+        ],
+      },
+      workbox: {
+        globPatterns: ["**/*.{js,css,html,ico,webmanifest}"],
+        globIgnores: ["_worker.js", "sw.js", "workbox-*.js"],
+        runtimeCaching: [
+          {
+            urlPattern: /\/cards\/.*\.png$/,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "brisca-cards",
+              expiration: {
+                maxEntries: 50,
+                maxAgeSeconds: 60 * 60 * 24 * 30,
+              },
+            },
           },
         ],
       },
