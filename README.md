@@ -16,9 +16,13 @@
 ## 🌟 Características
 
 - **Responsive de verdad:** cámara con FOV/zoom adaptativo para vertical, horizontal y tablet; canvas redimensionable al girar y DPR máximo 2.
-- **Manos en abanico:** tus cartas se ven sujetas y el rival enseña los reversos; la baza, el mazo y el triunfo siguen planos sobre el tapete.
+- **Manos apoyadas en la mesa:** tus cartas y las del rival quedan planas sobre el tapete, como al principio; la baza, el mazo y el triunfo también.
 - **Baraja Española (40 cartas)** con el arte de la **baraja Fournier de 1878** (dominio público, Museo Fournier de Naipes), normalizada y restaurada a 512×810 WebP, con el reverso clásico de la imagen aportada por el usuario (azul pizarra y crema).
-- **Estética arcade Balatro**: mesa 3D, cartas con volumen, partículas, _screen shake_ y filtro CRT.
+- **Mesa clásica**: base de madera de roble con relieve, tapete rectangular de fieltro verde cazador, línea dorada fina y sello «brisca3D».
+- **Mazo 3D:** bloque con grosor dinámico según las cartas restantes, canto de hojas y cartas superiores desalineadas; el triunfo asoma plano por debajo.
+- **Mano estable:** cartas planas, alineadas y apoyadas sobre el fieltro; el encuadre de cámara evita cortes en vertical y horizontal.
+- **Animaciones y sombras:** vuelo parabólico al mover cartas, sombras suaves a 2048 y cartas que proyectan sombra sin recibirla.
+- **Estética arcade Balatro**: cartas con esquinas redondeadas y volumen, partículas, _screen shake_ y filtro CRT.
 - **Online en tiempo real**:
   - Salas privadas con código de 4 letras y enlace directo (`?room=ABCD`).
   - Servidor **autoritativo**: la mano rival nunca se envía al cliente.
@@ -118,7 +122,7 @@ pnpm check        # TypeScript en todos los paquetes
 pnpm lint         # oxlint
 pnpm format       # prettier
 pnpm build        # cliente + servidor Node
-pnpm deploy:worker# Cloudflare: worker + assets
+pnpm deploy:worker # Cloudflare: worker + assets
 pnpm deploy:web   # Vercel: cliente + /api/ws
 pnpm release      # ambos
 ```

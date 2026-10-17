@@ -1,7 +1,13 @@
 import * as THREE from "three";
 import { Card } from "@brisca/core";
 import { getCardTexture, getCardBackTexture } from "./cardTextures.js";
-import { createFeltTexture } from "./tableTextures.js";
+import {
+  createFeltBumpTexture,
+  createFeltTexture,
+  createWoodBumpTexture,
+  createWoodTexture,
+  createDeckPageTexture,
+} from "./tableTextures.js";
 import { sounds } from "../audio/soundManager.js";
 
 export interface InteractiveCard {
@@ -11,7 +17,129 @@ export interface InteractiveCard {
   targetRot: THREE.Euler;
   isHovered: boolean;
   isPlayerHand: boolean;
+  flight?: {
+    start: THREE.Vector3;
+    target: THREE.Vector3;
+    startTime: number;
+    duration: number;
+    arc: number;
+  };
 }
+
+function createRoundedCardGeometry(
+  width: number,
+  height: number,
+  thickness: number,
+  radius: number,
+  segments = 6,
+): THREE.BufferGeometry {
+  const hw = width / 2;
+  const hh = height / 2;
+  const hd = thickness / 2;
+  const corners = [
+    { x: hw - radius, z: -hh + radius, a0: -Math.PI / 2, a1: 0 },
+    { x: hw - radius, z: hh - radius, a0: 0, a1: Math.PI / 2 },
+    { x: -hw + radius, z: hh - radius, a0: Math.PI / 2, a1: Math.PI },
+    { x: -hw + radius, z: -hh + radius, a0: Math.PI, a1: (3 * Math.PI) / 2 },
+  ];
+  const outline: Array<[number, number]> = [];
+  for (const c of corners) {
+    for (let i = 0; i <= segments; i += 1) {
+      const a = c.a0 + ((c.a1 - c.a0) * i) / segments;
+      outline.push([c.x + Math.cos(a) * radius, c.z + Math.sin(a) * radius]);
+    }
+  }
+
+  const positions: number[] = [];
+  const normals: number[] = [];
+  const uvs: number[] = [];
+  const indices: number[] = [];
+
+  const topCenter = 0;
+  positions.push(0, hd, 0);
+  normals.push(0, 1, 0);
+  uvs.push(0.5, 0.5);
+  const topStart = 1;
+  for (const [x, z] of outline) {
+    positions.push(x, hd, z);
+    normals.push(0, 1, 0);
+    uvs.push((x + hw) / width, (hh - z) / height);
+  }
+  for (let i = 0; i < outline.length; i += 1) {
+    const a = topStart + i;
+    const b = topStart + ((i + 1) % outline.length);
+    indices.push(topCenter, b, a);
+  }
+  const topCount = indices.length;
+
+  const bottomCenter = positions.length / 3;
+  positions.push(0, -hd, 0);
+  normals.push(0, -1, 0);
+  uvs.push(0.5, 0.5);
+  const bottomStart = positions.length / 3;
+  for (const [x, z] of outline) {
+    positions.push(x, -hd, z);
+    normals.push(0, -1, 0);
+    uvs.push((x + hw) / width, (hh - z) / height);
+  }
+  for (let i = 0; i < outline.length; i += 1) {
+    const a = bottomStart + i;
+    const b = bottomStart + ((i + 1) % outline.length);
+    indices.push(bottomCenter, a, b);
+  }
+  const bottomCount = indices.length - topCount;
+
+  for (let i = 0; i < outline.length; i += 1) {
+    const [xa, za] = outline[i];
+    const [xb, zb] = outline[(i + 1) % outline.length];
+    const la = Math.hypot(xa, za) || 1;
+    const lb = Math.hypot(xb, zb) || 1;
+    const base = positions.length / 3;
+    positions.push(xa, hd, za, xa, -hd, za, xb, -hd, zb, xb, hd, zb);
+    normals.push(
+      xa / la,
+      0,
+      za / la,
+      xa / la,
+      0,
+      za / la,
+      xb / lb,
+      0,
+      zb / lb,
+      xb / lb,
+      0,
+      zb / lb,
+    );
+    uvs.push(
+      i / outline.length,
+      1,
+      i / outline.length,
+      0,
+      (i + 1) / outline.length,
+      0,
+      (i + 1) / outline.length,
+      1,
+    );
+    indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geo.setAttribute("normal", new THREE.Float32BufferAttribute(normals, 3));
+  geo.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+  geo.setIndex(indices);
+  geo.addGroup(0, topCount, 0);
+  geo.addGroup(topCount, bottomCount, 1);
+  geo.addGroup(
+    topCount + bottomCount,
+    indices.length - topCount - bottomCount,
+    2,
+  );
+  geo.computeBoundingSphere();
+  return geo;
+}
+
+const CARD_GEOMETRY = createRoundedCardGeometry(1.96, 3.1, 0.024, 0.12);
 
 export class TableScene {
   private container: HTMLElement;
@@ -34,6 +162,7 @@ export class TableScene {
   private animFrameId: number | null = null;
   private isDestroyed = false;
   private resizeObserver: ResizeObserver | null = null;
+  private deckBlockMesh: THREE.Mesh | null = null;
 
   public onCardClick?: (card: Card) => void;
 
@@ -101,7 +230,7 @@ export class TableScene {
 
   private updateCameraResponsive(width: number, height: number) {
     const aspect = width / Math.max(1, height);
-    const target = new THREE.Vector3(0, 0, 0.1);
+    const target = new THREE.Vector3(0, 0, 0.7);
     const basePos = new THREE.Vector3(0, 13, 9.5);
     const baseFov = 40;
     const maxFov = 68;
@@ -125,7 +254,7 @@ export class TableScene {
     const baseDistance = basePos.distanceTo(target);
     // Deck at x=-4.7 (left edge -5.68); rail at ±5.25; hand near z=+5.5.
     const fitHalfWidth = 6.9;
-    const fitHalfDepth = 6.4;
+    const fitHalfDepth = 8.4;
     const distanceForWidth = fitHalfWidth / Math.tan(hfov / 2);
     const distanceForDepth = fitHalfDepth / Math.tan(vfov / 2);
     const distance = Math.max(baseDistance, distanceForWidth, distanceForDepth);
@@ -158,8 +287,7 @@ export class TableScene {
     const keyLight = new THREE.DirectionalLight("#fff1d6", 1.75);
     keyLight.position.set(4, 14, 6);
     keyLight.castShadow = true;
-    keyLight.shadow.mapSize.width = 1024;
-    keyLight.shadow.mapSize.height = 1024;
+    keyLight.shadow.mapSize.set(2048, 2048);
     keyLight.shadow.camera.near = 1;
     keyLight.shadow.camera.far = 30;
     keyLight.shadow.camera.left = -10;
@@ -167,6 +295,7 @@ export class TableScene {
     keyLight.shadow.camera.top = 10;
     keyLight.shadow.camera.bottom = -10;
     keyLight.shadow.bias = -0.0005;
+    keyLight.shadow.normalBias = 0.05;
     this.scene.add(keyLight);
 
     // 3. Fill Light: Cool fill light to illuminate all card faces evenly
@@ -189,154 +318,50 @@ export class TableScene {
   }
 
   private setupTable() {
-    // 1. Deep room floor plane so there is never an empty void
-    const floorGeo = new THREE.PlaneGeometry(80, 80);
+    // Dark room floor so the table is grounded.
     const floorMat = new THREE.MeshStandardMaterial({
       color: "#0a0705",
       roughness: 0.95,
       metalness: 0.05,
     });
-    const floor = new THREE.Mesh(floorGeo, floorMat);
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), floorMat);
     floor.rotation.x = -Math.PI / 2;
     floor.position.y = -0.5;
     floor.receiveShadow = true;
     this.scene.add(floor);
 
-    // 2. Expansive casino emerald felt mat
-    const feltGeo = new THREE.PlaneGeometry(50, 36, 32, 32);
+    // Large natural-oak table base with real grain relief.
+    const woodMap = createWoodTexture();
+    const woodBump = createWoodBumpTexture();
+    const woodMat = new THREE.MeshStandardMaterial({
+      map: woodMap,
+      bumpMap: woodBump,
+      bumpScale: 0.03,
+      roughness: 0.52,
+      metalness: 0.03,
+    });
+    const woodBase = new THREE.Mesh(
+      new THREE.BoxGeometry(22, 0.6, 16),
+      woodMat,
+    );
+    woodBase.position.y = -0.3;
+    woodBase.castShadow = true;
+    woodBase.receiveShadow = true;
+    this.scene.add(woodBase);
+
+    // Rectangular hunter-green felt mat sitting on the wood.
     const feltMat = new THREE.MeshStandardMaterial({
       map: createFeltTexture(),
-      color: "#ffffff",
-      roughness: 0.84,
-      metalness: 0.02,
+      bumpMap: createFeltBumpTexture(),
+      bumpScale: 0.014,
+      roughness: 0.96,
+      metalness: 0,
     });
-    const felt = new THREE.Mesh(feltGeo, feltMat);
+    const felt = new THREE.Mesh(new THREE.PlaneGeometry(14, 10.4), feltMat);
     felt.rotation.x = -Math.PI / 2;
+    felt.position.y = 0.002;
     felt.receiveShadow = true;
     this.scene.add(felt);
-
-    // 3. Double antique-gold ring with a cream inlay and brass studs
-    const goldMat = new THREE.MeshStandardMaterial({
-      color: "#c9963f",
-      metalness: 0.35,
-      roughness: 0.42,
-      emissive: "#3a2308",
-      emissiveIntensity: 0.4,
-      side: THREE.DoubleSide,
-    });
-    const goldBand = new THREE.Mesh(
-      new THREE.RingGeometry(4.56, 4.72, 128),
-      goldMat,
-    );
-    goldBand.rotation.x = -Math.PI / 2;
-    goldBand.position.y = 0.006;
-    this.scene.add(goldBand);
-
-    const creamMat = new THREE.MeshBasicMaterial({
-      color: "#ead7a8",
-      transparent: true,
-      opacity: 0.55,
-      side: THREE.DoubleSide,
-    });
-    const creamLine = new THREE.Mesh(
-      new THREE.RingGeometry(4.34, 4.37, 128),
-      creamMat,
-    );
-    creamLine.rotation.x = -Math.PI / 2;
-    creamLine.position.y = 0.007;
-    this.scene.add(creamLine);
-
-    const outerMat = new THREE.MeshBasicMaterial({
-      color: "#8a6424",
-      transparent: true,
-      opacity: 0.4,
-      side: THREE.DoubleSide,
-    });
-    const outerLine = new THREE.Mesh(
-      new THREE.RingGeometry(4.95, 4.97, 128),
-      outerMat,
-    );
-    outerLine.rotation.x = -Math.PI / 2;
-    outerLine.position.y = 0.0065;
-    this.scene.add(outerLine);
-
-    const studGeo = new THREE.SphereGeometry(0.045, 10, 10);
-    const studMat = new THREE.MeshStandardMaterial({
-      color: "#e0b96b",
-      metalness: 0.5,
-      roughness: 0.32,
-      emissive: "#4a2c08",
-      emissiveIntensity: 0.3,
-    });
-    for (let i = 0; i < 8; i += 1) {
-      const angle = (i / 8) * Math.PI * 2;
-      const stud = new THREE.Mesh(studGeo, studMat);
-      stud.position.set(Math.cos(angle) * 4.64, 0.026, Math.sin(angle) * 4.64);
-      this.scene.add(stud);
-    }
-
-    // 3b. Low mahogany rail with a brass inlay around the play area
-    const railMat = new THREE.MeshStandardMaterial({
-      color: "#2a150b",
-      roughness: 0.42,
-      metalness: 0.08,
-    });
-    const inlayMat = new THREE.MeshStandardMaterial({
-      color: "#b8863a",
-      metalness: 0.45,
-      roughness: 0.35,
-      emissive: "#2a1806",
-      emissiveIntensity: 0.25,
-    });
-    const railHeight = 0.18;
-    const railWidth = 0.24;
-    const railY = 0.09;
-    const railDefs = [
-      { w: 16.3, d: railWidth, x: 0, z: -5.25 },
-      { w: 16.3, d: railWidth, x: 0, z: 5.25 },
-      { w: railWidth, d: 10.5, x: -7.85, z: 0 },
-      { w: railWidth, d: 10.5, x: 7.85, z: 0 },
-    ];
-    for (const def of railDefs) {
-      const rail = new THREE.Mesh(
-        new THREE.BoxGeometry(def.w, railHeight, def.d),
-        railMat,
-      );
-      rail.position.set(def.x, railY, def.z);
-      rail.castShadow = true;
-      rail.receiveShadow = true;
-      this.scene.add(rail);
-
-      const inlay = new THREE.Mesh(
-        new THREE.BoxGeometry(def.w + 0.006, 0.015, def.d + 0.006),
-        inlayMat,
-      );
-      inlay.position.set(def.x, railY + railHeight / 2 + 0.008, def.z);
-      this.scene.add(inlay);
-    }
-
-    // 4. Table wooden border / rail (polished mahogany)
-    const borderGeo = new THREE.BoxGeometry(52, 0.45, 38);
-    const borderMat = new THREE.MeshStandardMaterial({
-      color: "#241108",
-      roughness: 0.35,
-      metalness: 0.08,
-    });
-    const border = new THREE.Mesh(borderGeo, borderMat);
-    border.position.y = -0.25;
-    border.receiveShadow = true;
-    this.scene.add(border);
-
-    // 5. Outer padded armrest rim (dark leather)
-    const armrestGeo = new THREE.BoxGeometry(53, 0.55, 39);
-    const armrestMat = new THREE.MeshStandardMaterial({
-      color: "#140a05",
-      roughness: 0.55,
-      metalness: 0.02,
-    });
-    const armrest = new THREE.Mesh(armrestGeo, armrestMat);
-    armrest.position.y = -0.32;
-    this.scene.add(armrest);
   }
 
   private setupParticles() {
@@ -388,18 +413,15 @@ export class TableScene {
   }
 
   private createCardMesh(card: Card): THREE.Mesh {
-    // Fournier 1878 deck: real 60x94 mm (1:1.567)
-    const cardWidth = 1.96;
-    const cardHeight = 3.1;
-    const cardThick = 0.024;
-
-    const geo = new THREE.BoxGeometry(cardWidth, cardThick, cardHeight);
+    // Fournier 1878 proportions, rounded silhouette.
+    const geo = CARD_GEOMETRY;
     const frontTex = getCardTexture(card);
     const backTex = getCardBackTexture();
 
     const edgeMat = new THREE.MeshStandardMaterial({
       color: "#c9c4b8",
       roughness: 0.45,
+      side: THREE.FrontSide,
     });
     const frontMat = new THREE.MeshStandardMaterial({
       map: frontTex,
@@ -414,12 +436,24 @@ export class TableScene {
       transparent: false,
     });
 
-    // Box materials order: [right, left, top(front), bottom(back), front_edge, back_edge]
-    const materials = [edgeMat, edgeMat, frontMat, backMat, edgeMat, edgeMat];
+    // Geometry groups: top/front, bottom/back, rounded side.
+    const materials = [frontMat, backMat, edgeMat];
     const mesh = new THREE.Mesh(geo, materials);
     mesh.castShadow = true;
-    mesh.receiveShadow = true;
+    mesh.receiveShadow = false;
     return mesh;
+  }
+
+  private startCardFlight(entry: InteractiveCard) {
+    const distance = entry.mesh.position.distanceTo(entry.targetPos);
+    if (distance < 0.35) return;
+    entry.flight = {
+      start: entry.mesh.position.clone(),
+      target: entry.targetPos.clone(),
+      startTime: performance.now(),
+      duration: 430,
+      arc: 0.55,
+    };
   }
 
   public updateGameState(
@@ -454,24 +488,22 @@ export class TableScene {
 
       entry.isPlayerHand = true;
       const count = myHand.length;
-      // Held hand: the cards stand up in a fan at the bottom edge, facing the
-      // camera. The table groups (trick, deck, trump, rival) stay flat.
-      const spreadX = count === 2 ? 3.4 : 3.0;
+      // Bottom-edge pivot: the base stays on the felt when the card tilts.
+      const spreadX = count === 2 ? 5.2 : 2.2;
       const offsetX = (idx - (count - 1) / 2) * spreadX;
       const fan = idx - (count - 1) / 2;
-      const baseZ = 5.2 + (count === 3 && idx === 1 ? 0.08 : 0);
-      const baseY = 1.5 + (count === 3 && idx === 1 ? 0.1 : 0);
-      const tilt = THREE.MathUtils.degToRad(66);
-      const yaw = fan * -0.1;
-      const roll = fan * -0.07;
+      const baseZ = 2.4;
+      const baseY = 0.06;
+      const tiltX = 0;
 
       if (entry.isHovered && isMyTurn) {
-        entry.targetPos.set(offsetX, baseY + 0.35, baseZ + 0.25);
-        entry.targetRot.set(THREE.MathUtils.degToRad(50), yaw, roll);
+        entry.targetPos.set(offsetX, baseY + 0.3, baseZ - 0.25);
+        entry.targetRot.set(tiltX, 0, fan * -0.03);
       } else {
         entry.targetPos.set(offsetX, baseY, baseZ);
-        entry.targetRot.set(tilt, yaw, roll);
+        entry.targetRot.set(tiltX, 0, fan * -0.05);
       }
+      this.startCardFlight(entry);
     });
 
     // 2. Opponent hand (top, facing down)
@@ -495,21 +527,12 @@ export class TableScene {
         this.cardsMap.set(oppId, entry);
       }
 
-      // Rival hand: a held fan of backs at the far edge, mirroring the player.
-      const spreadX = opponentCount === 2 ? 3.4 : 3.0;
+      // Rival hand flat, face down, in its own top zone.
+      const spreadX = opponentCount === 2 ? 5.2 : 2.2;
       const offsetX = (i - (opponentCount - 1) / 2) * spreadX;
-      const fan = i - (opponentCount - 1) / 2;
-      entry.targetPos.set(
-        offsetX,
-        1.35 + (opponentCount === 3 && i === 1 ? 0.1 : 0),
-        -3.6,
-      );
-      // Face down + tilt back, so the back faces the camera.
-      entry.targetRot.set(
-        Math.PI + THREE.MathUtils.degToRad(66),
-        fan * 0.1,
-        fan * 0.07,
-      );
+      entry.targetPos.set(offsetX, 0.03 + i * 0.004, -3.8);
+      entry.targetRot.set(Math.PI, 0, 0);
+      this.startCardFlight(entry);
     }
 
     // 3. Trump card (left, face up at 90 deg)
@@ -535,10 +558,38 @@ export class TableScene {
       entry.targetRot.set(0, Math.PI / 2, 0);
     }
 
-    // 4. Deck stack (three cards on top of the face-up trump)
+    // 4. Deck block: a real 3D stack whose height follows the remaining cards.
     if (deckCount > 0) {
-      for (let layer = 0; layer < 3; layer += 1) {
-        const deckId = layer === 0 ? "deck_stack" : `deck_stack_${layer}`;
+      const deckHeight = Math.max(0.03, deckCount * 0.018);
+      const deckBottom = 0.034;
+      if (!this.deckBlockMesh) {
+        const backTex = getCardBackTexture();
+        const pageTex = createDeckPageTexture();
+        const topMat = new THREE.MeshStandardMaterial({
+          map: backTex,
+          roughness: 0.36,
+          metalness: 0,
+        });
+        const sideMat = new THREE.MeshStandardMaterial({
+          map: pageTex,
+          roughness: 0.82,
+          metalness: 0,
+        });
+        this.deckBlockMesh = new THREE.Mesh(
+          new THREE.BoxGeometry(1.96, 1, 3.1),
+          [sideMat, sideMat, topMat, topMat, sideMat, sideMat],
+        );
+        this.deckBlockMesh.castShadow = true;
+        this.deckBlockMesh.receiveShadow = false;
+        this.scene.add(this.deckBlockMesh);
+      }
+      this.deckBlockMesh.scale.y = deckHeight;
+      this.deckBlockMesh.position.set(-4.7, deckBottom + deckHeight / 2, -0.5);
+      this.deckBlockMesh.rotation.set(0, 0, 0.026);
+
+      // A few slightly misaligned top cards so the pile looks shuffled.
+      for (let i = 0; i < 3; i += 1) {
+        const deckId = `deck_top_${i}`;
         activeIds.add(deckId);
         let entry = this.cardsMap.get(deckId);
         if (!entry) {
@@ -549,6 +600,7 @@ export class TableScene {
             points: 0,
           };
           const mesh = this.createCardMesh(dummyCard);
+          mesh.position.set(0, 2, 0);
           this.scene.add(mesh);
           entry = {
             mesh,
@@ -561,12 +613,15 @@ export class TableScene {
           this.cardsMap.set(deckId, entry);
         }
         entry.targetPos.set(
-          -4.7 + layer * 0.025,
-          0.046 + layer * 0.026 + Math.min(deckCount, 30) * 0.0003,
-          -0.5 + layer * 0.02,
+          -4.7 + (Math.random() - 0.5) * 0.035,
+          deckBottom + deckHeight + 0.002 + i * 0.024,
+          -0.5 + (Math.random() - 0.5) * 0.035,
         );
-        entry.targetRot.set(Math.PI, 0, 0.04 + layer * 0.012);
+        entry.targetRot.set(Math.PI, 0, 0.03 + (Math.random() - 0.5) * 0.025);
       }
+    } else if (this.deckBlockMesh) {
+      this.scene.remove(this.deckBlockMesh);
+      this.deckBlockMesh = null;
     }
 
     // 5. Current Trick (Center table)
@@ -688,9 +743,36 @@ export class TableScene {
     if (this.isDestroyed) return;
     this.animFrameId = requestAnimationFrame(this.animate);
 
-    // Smooth lerp card positions and rotations
+    // Parabolic flight for moving cards, gentle settle otherwise.
+    const now = performance.now();
     for (const entry of this.cardsMap.values()) {
-      entry.mesh.position.lerp(entry.targetPos, 0.16);
+      if (entry.flight) {
+        const t = Math.min(
+          1,
+          (now - entry.flight.startTime) / entry.flight.duration,
+        );
+        const ease = t * t * (3 - 2 * t);
+        entry.mesh.position.x = THREE.MathUtils.lerp(
+          entry.flight.start.x,
+          entry.flight.target.x,
+          ease,
+        );
+        entry.mesh.position.z = THREE.MathUtils.lerp(
+          entry.flight.start.z,
+          entry.flight.target.z,
+          ease,
+        );
+        entry.mesh.position.y =
+          THREE.MathUtils.lerp(
+            entry.flight.start.y,
+            entry.flight.target.y,
+            ease,
+          ) +
+          Math.sin(Math.PI * t) * entry.flight.arc;
+        if (t >= 1) entry.flight = undefined;
+      } else {
+        entry.mesh.position.lerp(entry.targetPos, 0.16);
+      }
       entry.mesh.quaternion.slerp(
         new THREE.Quaternion().setFromEuler(entry.targetRot),
         0.16,
@@ -761,6 +843,10 @@ export class TableScene {
     this.resizeObserver = null;
     this.container.removeEventListener("pointermove", this.onPointerMove);
     this.container.removeEventListener("pointerdown", this.onPointerDown);
+    if (this.deckBlockMesh) {
+      this.scene.remove(this.deckBlockMesh);
+      this.deckBlockMesh = null;
+    }
     this.renderer.dispose();
     if (this.container.contains(this.renderer.domElement)) {
       this.container.removeChild(this.renderer.domElement);
