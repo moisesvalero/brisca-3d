@@ -16,7 +16,7 @@
 ## 🌟 Características
 
 - **Manos en abanico:** tus cartas se ven sujetas y el rival enseña los reversos; la baza, el mazo y el triunfo siguen planos sobre el tapete.
-- **Baraja Española (40 cartas)** con el arte de la **baraja Fournier de 1878** (dominio público, Museo Fournier de Naipes), normalizada y restaurada a 512×810 WebP, con reverso rojo clásico original inspirado en la baraja española.
+- **Baraja Española (40 cartas)** con el arte de la **baraja Fournier de 1878** (dominio público, Museo Fournier de Naipes), normalizada y restaurada a 512×810 WebP, con el reverso clásico de la imagen aportada por el usuario (azul pizarra y crema).
 - **Estética arcade Balatro**: mesa 3D, cartas con volumen, partículas, _screen shake_ y filtro CRT.
 - **Online en tiempo real**:
   - Salas privadas con código de 4 letras y enlace directo (`?room=ABCD`).
