@@ -162,6 +162,30 @@ describe("GameServer (shared session logic)", () => {
     expect(error.payload!.message).toContain("turn");
   });
 
+  it("rejects the reported 2-for-figure trump swap on the server", async () => {
+    await createAndJoin();
+    const game = server.rooms.get("ABCD")!.getGame()!;
+
+    // Escenario del fallo: p1 tiene el 2 de triunfo y el triunfo descubierto
+    // es un Caballo. Un cliente manipulado pide el cambio ilegal.
+    game.phase = "PLAYER_TURN";
+    game.turn = "p1";
+    game.trumpSuit = "oros";
+    game.trumpCard = { id: "o11", suit: "oros", rank: 11, points: 3 };
+    game.hands.p1[0] = { id: "o2", suit: "oros", rank: 2, points: 0 };
+    p1.clear();
+
+    server.handleMessage(
+      p1,
+      JSON.stringify({ type: "SWAP_TRUMP", cardId: "o2" }),
+    );
+
+    const error = await waitFor(p1, "ERROR");
+    expect(error.payload!.code).toBe("INVALID_MOVE");
+    expect(game.trumpCard.id).toBe("o11");
+    expect(game.hands.p1.some((card) => card.id === "o2")).toBe(true);
+  });
+
   it("plays a complete game to 120 points", async () => {
     await createAndJoin();
     await waitFor(p1, "GAME_STATE");

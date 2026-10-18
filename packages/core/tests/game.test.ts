@@ -63,7 +63,7 @@ describe("Game Lifecycle and Engine", () => {
     expect(game.hands.p2.some((c) => c.id === "draw2")).toBe(true);
   });
 
-  it("swaps trump card correctly", () => {
+  it("swaps the 7 for a figure", () => {
     const mockDeck: Card[] = [
       // P1 hand with 7 of trumps
       { id: "o7", suit: "oros", rank: 7, points: 0 },
@@ -73,8 +73,8 @@ describe("Game Lifecycle and Engine", () => {
       { id: "c1", suit: "copas", rank: 1, points: 11 },
       { id: "e2", suit: "espadas", rank: 2, points: 0 },
       { id: "b7", suit: "bastos", rank: 7, points: 0 },
-      // Trump card is 6 de oros (white): the 7 can swap it.
-      { id: "o6", suit: "oros", rank: 6, points: 0 },
+      // Caballo de oros (figura): the 7 can swap it.
+      { id: "o11", suit: "oros", rank: 11, points: 3 },
       // Remaining deck cards
       { id: "extra1", suit: "copas", rank: 5, points: 0 },
       { id: "extra2", suit: "espadas", rank: 6, points: 0 },
@@ -82,12 +82,54 @@ describe("Game Lifecycle and Engine", () => {
 
     const game = createGame("room-swap", "p1", mockDeck);
 
-    // P1 swaps 7 de oros for 6 de oros
+    // P1 swaps 7 de oros for Caballo de oros
     swapTrumpCard(game, "p1", "o7");
 
     expect(game.trumpCard.id).toBe("o7");
-    expect(game.hands.p1.some((c) => c.id === "o6")).toBe(true);
+    expect(game.hands.p1.some((c) => c.id === "o11")).toBe(true);
     expect(game.hands.p1.some((c) => c.id === "o7")).toBe(false);
+  });
+
+  it("rejects swapping the 2 for a figure (reported exploit)", () => {
+    const mockDeck: Card[] = [
+      { id: "o2", suit: "oros", rank: 2, points: 0 },
+      { id: "c2", suit: "copas", rank: 2, points: 0 },
+      { id: "b5", suit: "bastos", rank: 5, points: 0 },
+      { id: "c1", suit: "copas", rank: 1, points: 11 },
+      { id: "e2", suit: "espadas", rank: 2, points: 0 },
+      { id: "b7", suit: "bastos", rank: 7, points: 0 },
+      { id: "o11", suit: "oros", rank: 11, points: 3 },
+      { id: "extra1", suit: "copas", rank: 5, points: 0 },
+      { id: "extra2", suit: "espadas", rank: 6, points: 0 },
+    ];
+
+    const game = createGame("room-exploit", "p1", mockDeck);
+
+    expect(() => swapTrumpCard(game, "p1", "o2")).toThrow(/Cannot swap trump/);
+    expect(game.trumpCard.id).toBe("o11");
+    expect(game.hands.p1.some((c) => c.id === "o2")).toBe(true);
+  });
+
+  it("swaps the 2 for the 7", () => {
+    const mockDeck: Card[] = [
+      { id: "o2", suit: "oros", rank: 2, points: 0 },
+      { id: "c2", suit: "copas", rank: 2, points: 0 },
+      { id: "b5", suit: "bastos", rank: 5, points: 0 },
+      { id: "c1", suit: "copas", rank: 1, points: 11 },
+      { id: "e2", suit: "espadas", rank: 2, points: 0 },
+      { id: "b7", suit: "bastos", rank: 7, points: 0 },
+      { id: "o7", suit: "oros", rank: 7, points: 0 },
+      { id: "extra1", suit: "copas", rank: 5, points: 0 },
+      { id: "extra2", suit: "espadas", rank: 6, points: 0 },
+    ];
+
+    const game = createGame("room-swap-two", "p1", mockDeck);
+
+    swapTrumpCard(game, "p1", "o2");
+
+    expect(game.trumpCard.id).toBe("o2");
+    expect(game.hands.p1.some((c) => c.id === "o7")).toBe(true);
+    expect(game.hands.p1.some((c) => c.id === "o2")).toBe(false);
   });
 
   it("handles non-blocking trick resolution when autoCollect is false", () => {

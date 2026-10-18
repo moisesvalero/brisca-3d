@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { resolveTrick, canSwapTrump, Card } from "../src/index.js";
+import {
+  resolveTrick,
+  canSwapTrump,
+  Card,
+  RANKS,
+  CARD_POINTS,
+} from "../src/index.js";
 
 describe("Trick Resolution", () => {
   const trump = "oros";
@@ -38,42 +44,53 @@ describe("Trick Resolution", () => {
 });
 
 describe("Trump Card Swap (Regla del 7 y 2)", () => {
-  it("allows swapping with 2 if trump card has points or rank > 7", () => {
-    const trumpCard: Card = { id: "o1", suit: "oros", rank: 1, points: 11 }; // As de oros
-    const sevenTrump: Card = { id: "o7", suit: "oros", rank: 7, points: 0 };
-    const twoTrump: Card = { id: "o2", suit: "oros", rank: 2, points: 0 };
-
-    expect(canSwapTrump(twoTrump, trumpCard)).toBe(true);
-    expect(canSwapTrump(sevenTrump, trumpCard)).toBe(false);
+  const makeCard = (rank: Card["rank"], suit: Card["suit"] = "oros"): Card => ({
+    id: `${suit}_${rank}`,
+    suit,
+    rank,
+    points: CARD_POINTS[rank],
   });
 
-  it("allows swapping with 7 if trump card is white card <= 7", () => {
-    const trumpCard: Card = { id: "o5", suit: "oros", rank: 5, points: 0 };
-    const twoTrump: Card = { id: "o2", suit: "oros", rank: 2, points: 0 };
-    const sevenTrump: Card = { id: "o7", suit: "oros", rank: 7, points: 0 };
+  it("solo permite 7 contra cartas altas y 2 contra el 7, en todas las combinaciones", () => {
+    const allowed = new Set(["7:1", "7:3", "7:10", "7:11", "7:12", "2:7"]);
 
-    expect(canSwapTrump(sevenTrump, trumpCard)).toBe(true);
-    expect(canSwapTrump(twoTrump, trumpCard)).toBe(false);
+    for (const trumpRank of RANKS) {
+      for (const playerRank of [2, 7] as const) {
+        expect(
+          canSwapTrump(makeCard(playerRank), makeCard(trumpRank)),
+          `${playerRank} contra ${trumpRank}`,
+        ).toBe(allowed.has(`${playerRank}:${trumpRank}`));
+      }
+    }
   });
 
-  it("allows the 7 against a 6 trump (the reported case)", () => {
-    const trumpCard: Card = { id: "o6", suit: "oros", rank: 6, points: 0 };
-    const sevenTrump: Card = { id: "o7", suit: "oros", rank: 7, points: 0 };
-    const twoTrump: Card = { id: "o2", suit: "oros", rank: 2, points: 0 };
-
-    expect(canSwapTrump(sevenTrump, trumpCard)).toBe(true);
-    expect(canSwapTrump(twoTrump, trumpCard)).toBe(false);
+  it("rechaza el 2 contra un caballo (el fallo reportado)", () => {
+    expect(canSwapTrump(makeCard(2), makeCard(11))).toBe(false);
+    expect(canSwapTrump(makeCard(2), makeCard(12))).toBe(false);
+    expect(canSwapTrump(makeCard(2), makeCard(10))).toBe(false);
+    expect(canSwapTrump(makeCard(2), makeCard(1))).toBe(false);
+    expect(canSwapTrump(makeCard(2), makeCard(3))).toBe(false);
   });
 
-  it("rejects swap if player card is not of trump suit", () => {
-    const trumpCard: Card = { id: "o1", suit: "oros", rank: 1, points: 11 };
-    const wrongSuitSeven: Card = {
-      id: "c7",
-      suit: "copas",
-      rank: 7,
-      points: 0,
-    };
+  it("rechaza el 7 contra cartas blancas distintas del 7", () => {
+    for (const rank of [2, 4, 5, 6] as const) {
+      expect(canSwapTrump(makeCard(7), makeCard(rank))).toBe(false);
+    }
+  });
 
-    expect(canSwapTrump(wrongSuitSeven, trumpCard)).toBe(false);
+  it("solo el 2 puede cambiar el 7 y solo el 7 puede cambiar una figura", () => {
+    expect(canSwapTrump(makeCard(2), makeCard(7))).toBe(true);
+    expect(canSwapTrump(makeCard(7), makeCard(11))).toBe(true);
+    expect(canSwapTrump(makeCard(7), makeCard(7))).toBe(false);
+  });
+
+  it("rechaza cartas distintas del 2 o el 7", () => {
+    expect(canSwapTrump(makeCard(3), makeCard(11))).toBe(false);
+    expect(canSwapTrump(makeCard(10), makeCard(7))).toBe(false);
+  });
+
+  it("rechaza si la carta no es del palo del triunfo", () => {
+    expect(canSwapTrump(makeCard(7, "copas"), makeCard(1))).toBe(false);
+    expect(canSwapTrump(makeCard(2, "copas"), makeCard(7))).toBe(false);
   });
 });

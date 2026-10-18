@@ -42,12 +42,12 @@ export function resolveTrick(
 }
 
 /**
- * Checks whether a player can swap their card with the active trump card on table.
- * Standard Brisca rule:
- * - 7 of trumps can be swapped when the active trump is a low white card
- *   (2, 4, 5, 6, 7): the 7 is higher than it.
- * - 2 of trumps can be swapped when the active trump is a high card
- *   (As, 3, Rey, Caballo, Sota): the 2 is lower than it.
+ * Regla del 7 y 2 de esta versión:
+ * - El 7 de triunfo solo puede cambiar una carta alta
+ *   (As, Tres, Rey, Caballo o Sota).
+ * - El 2 de triunfo solo puede cambiar el 7 de triunfo.
+ * Cualquier otro intercambio se rechaza. El servidor valida con esta misma
+ * función, así que no depende de lo que haga el cliente.
  */
 export function canSwapTrump(
   playerCard: Card,
@@ -57,11 +57,13 @@ export function canSwapTrump(
     return false;
   }
 
-  const isHighTrump = currentTrumpCard.points > 0 || currentTrumpCard.rank > 7;
-
-  if (isHighTrump) {
-    return playerCard.rank === 2;
-  } else {
-    return playerCard.rank === 7;
+  if (playerCard.rank === 7) {
+    return currentTrumpCard.points > 0 || currentTrumpCard.rank > 7;
   }
+
+  if (playerCard.rank === 2) {
+    return currentTrumpCard.rank === 7;
+  }
+
+  return false;
 }

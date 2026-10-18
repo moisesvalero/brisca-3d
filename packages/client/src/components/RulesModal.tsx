@@ -198,18 +198,17 @@ export const RulesModal: React.FC<RulesModalProps> = ({ open, onClose }) => {
             </h3>
             <div className="space-y-1.5 text-sm leading-relaxed text-amber-100/90">
               <p>
-                Si el triunfo descubierto es una carta con puntos (As, Tres,
-                Sota, Caballo o Rey), el jugador que tenga el{" "}
-                <b className="text-white">7 de triunfo</b> puede cambiarlo por
-                esa carta.
+                El <b className="text-white">7 de triunfo</b> solo puede cambiar
+                una figura o carta con puntos (As, Tres, Rey, Caballo o Sota).
               </p>
               <p>
-                Si es una carta blanca (2, 4, 5, 6 o 7), el cambio se hace con
-                el <b className="text-white">2 de triunfo</b>.
+                El <b className="text-white">2 de triunfo</b> solo puede cambiar
+                el <b className="text-white">7 de triunfo</b>.
               </p>
               <p className="text-xs text-amber-200/70">
-                Solo se puede cambiar mientras quede mazo. Si tienes una carta
-                válida, aparecerá el botón «Cambiar triunfo».
+                Cualquier otro cambio no está permitido. Solo se puede cambiar
+                mientras quede mazo. Si tienes una carta válida, aparecerá el
+                botón «Cambiar triunfo».
               </p>
             </div>
           </div>

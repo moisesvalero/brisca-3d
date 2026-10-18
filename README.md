@@ -52,7 +52,7 @@
 - Reparto de 3 cartas por jugador y triunfo descubierto bajo el mazo.
 - No es obligatorio asistir ni superar palo.
 - El ganador de la baza roba primero; al agotarse el mazo se recoge el triunfo.
-- **Regla del 7 y 2** para cambiar el triunfo mientras quede mazo.
+- **Regla del 7 y 2:** el 7 de triunfo solo cambia una figura o carta con puntos; el 2 solo cambia el 7, mientras quede mazo.
 
 ---
 
@@ -84,8 +84,8 @@ El puente de Vercel existe porque algunos ISP bloquean el rango de IPs de `worke
 brisca-3d/
 ├── api/ws.ts          # Puente WebSocket de Vercel
 ├── packages/
-│   ├── core/          # Baraja, reglas, bazas, puntos (15 tests)
-│   ├── session/       # Salas, turnos, reconexión, protocolo (11 tests)
+│   ├── core/          # Baraja, reglas, bazas, puntos (19 tests)
+│   ├── session/       # Salas, turnos, reconexión, protocolo (12 tests)
 │   ├── server/        # Servidor Node + ws para desarrollo local
 │   ├── worker/        # Cloudflare Worker + Durable Object
 │   └── client/        # React 19 + Three.js + Tailwind + PWA
@@ -195,7 +195,7 @@ El token de reconexión se guarda en `sessionStorage` por sala; el apodo en `loc
 
 ## 🧪 Calidad
 
-- **31 tests**: motor, sesión y servidor (partida completa, revancha, reconexión, sala llena, rate limit, mensajes inválidos).
+- **36 tests**: motor, sesión y servidor (partida completa, revancha, reconexión, sala llena, rate limit, mensajes inválidos).
 - TypeScript estricto, `oxlint` y `prettier` con Husky + lint-staged.
 - CI en `.github/workflows/ci.yml`.
 - E2E manual verificado en navegador real: crear/unirse, partida completa, revancha, enlace de invitación, modo IA y reconexión.
