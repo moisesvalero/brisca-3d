@@ -10,6 +10,9 @@
 ![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-F38020?style=flat-square&logo=cloudflare)
 ![Vercel](https://img.shields.io/badge/Vercel-Hobby-black?style=flat-square&logo=vercel)
 ![PWA](https://img.shields.io/badge/PWA-Ready-success?style=flat-square)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.3-38bdf8?style=flat-square&logo=tailwindcss)
+[![License: PolyForm Noncommercial 1.0.0](https://img.shields.io/badge/License-PolyForm_Noncommercial_1.0.0-blue?style=flat-square)](LICENSE)
+[![GitHub](https://img.shields.io/badge/GitHub-moisesvalero%2Fbrisca--3d-181717?style=flat-square&logo=github)](https://github.com/moisesvalero/brisca-3d)
 
 ---
 
@@ -35,7 +38,7 @@
 - **Reglas completas a mano:** botón en el lobby y en el HUD con un modal scrollable (puntos, bazas, triunfo y regla del 7 y 2).
 - **Instalable en iOS y Android:** banner en móvil con guía para Safari y prompt nativo en Android/Chrome.
 
-![Baraja Fournier 1878 en la mesa 3D](docs/cards-preview.png)
+![Mesa 3D de Brisca con la mano plana, el mazo y el triunfo](docs/cards-preview.png)
 
 **Baraja:** [Fournier 1878, dominio público](CREDITS.md) · Museo Fournier de Naipes (Bibat).
 
@@ -81,7 +84,7 @@ El puente de Vercel existe porque algunos ISP bloquean el rango de IPs de `worke
 brisca-3d/
 ├── api/ws.ts          # Puente WebSocket de Vercel
 ├── packages/
-│   ├── core/          # Baraja, reglas, bazas, puntos (14 tests)
+│   ├── core/          # Baraja, reglas, bazas, puntos (15 tests)
 │   ├── session/       # Salas, turnos, reconexión, protocolo (11 tests)
 │   ├── server/        # Servidor Node + ws para desarrollo local
 │   ├── worker/        # Cloudflare Worker + Durable Object
@@ -94,7 +97,7 @@ brisca-3d/
 
 ## 🚀 Desarrollo local
 
-Requisitos: **Node 20+** y **pnpm 10+** (`corepack enable`).
+Requisitos: **Node 20+** y **pnpm 12+** (`corepack enable`).
 
 ```bash
 pnpm install
@@ -192,7 +195,7 @@ El token de reconexión se guarda en `sessionStorage` por sala; el apodo en `loc
 
 ## 🧪 Calidad
 
-- **30 tests**: motor, sesión y servidor (partida completa, revancha, reconexión, sala llena, rate limit, mensajes inválidos).
+- **31 tests**: motor, sesión y servidor (partida completa, revancha, reconexión, sala llena, rate limit, mensajes inválidos).
 - TypeScript estricto, `oxlint` y `prettier` con Husky + lint-staged.
 - CI en `.github/workflows/ci.yml`.
 - E2E manual verificado en navegador real: crear/unirse, partida completa, revancha, enlace de invitación, modo IA y reconexión.
@@ -210,4 +213,10 @@ El token de reconexión se guarda en `sessionStorage` por sala; el apodo en `loc
 
 ## 📄 Licencia
 
-MIT © Moisés Valero
+Código, escena 3D, texturas originales, efectos y audio: **[PolyForm Noncommercial 1.0.0](LICENSE)** © 2026 Moisés Valero Sánchez.
+
+Puedes usar, estudiar, modificar y compartir el proyecto para fines **no comerciales**: uso personal, educativo, investigación, organizaciones sin ánimo de lucro u organismos públicos. **No se permite el uso comercial** sin autorización expresa.
+
+- Las dependencias de terceros conservan sus licencias originales.
+- Las caras de la baraja Fournier 1878 son de **dominio público**; consulta [CREDITS.md](CREDITS.md).
+- Para un uso comercial, abre un issue en el [repositorio](https://github.com/moisesvalero/brisca-3d/issues).

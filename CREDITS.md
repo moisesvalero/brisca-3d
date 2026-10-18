@@ -11,4 +11,6 @@
 
 ## Código, 3D y sonido
 
-Código, escena 3D, texturas de mesa, efectos y audio procedural: MIT © Moisés Valero.
+Código, escena 3D, texturas de mesa, efectos y audio procedural: **PolyForm Noncommercial 1.0.0** © 2026 Moisés Valero Sánchez. Consulta [LICENSE](LICENSE).
+
+El uso comercial requiere autorización expresa. Las dependencias de terceros (React, Three.js, Vite, Tailwind CSS, etc.) conservan sus licencias originales. Las caras de la baraja Fournier 1878 son de dominio público.

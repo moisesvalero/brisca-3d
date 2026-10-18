@@ -2,6 +2,12 @@
   "name": "brisca-3d-monorepo",
   "version": "0.1.0",
   "private": true,
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "author": "Moisés Valero Sánchez",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/moisesvalero/brisca-3d.git"
+  },
   "type": "module",
   "packageManager": "pnpm@12.5.1",
   "dependencies": {
