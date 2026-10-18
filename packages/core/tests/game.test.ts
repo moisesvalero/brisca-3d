@@ -73,8 +73,8 @@ describe("Game Lifecycle and Engine", () => {
       { id: "c1", suit: "copas", rank: 1, points: 11 },
       { id: "e2", suit: "espadas", rank: 2, points: 0 },
       { id: "b7", suit: "bastos", rank: 7, points: 0 },
-      // Trump card is As de oros (11 pts)
-      { id: "o1", suit: "oros", rank: 1, points: 11 },
+      // Trump card is 6 de oros (white): the 7 can swap it.
+      { id: "o6", suit: "oros", rank: 6, points: 0 },
       // Remaining deck cards
       { id: "extra1", suit: "copas", rank: 5, points: 0 },
       { id: "extra2", suit: "espadas", rank: 6, points: 0 },
@@ -82,11 +82,11 @@ describe("Game Lifecycle and Engine", () => {
 
     const game = createGame("room-swap", "p1", mockDeck);
 
-    // P1 swaps 7 de oros for As de oros
+    // P1 swaps 7 de oros for 6 de oros
     swapTrumpCard(game, "p1", "o7");
 
     expect(game.trumpCard.id).toBe("o7");
-    expect(game.hands.p1.some((c) => c.id === "o1")).toBe(true);
+    expect(game.hands.p1.some((c) => c.id === "o6")).toBe(true);
     expect(game.hands.p1.some((c) => c.id === "o7")).toBe(false);
   });
 

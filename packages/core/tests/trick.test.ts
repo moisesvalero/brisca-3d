@@ -38,22 +38,31 @@ describe("Trick Resolution", () => {
 });
 
 describe("Trump Card Swap (Regla del 7 y 2)", () => {
-  it("allows swapping with 7 if trump card has points or rank > 7", () => {
+  it("allows swapping with 2 if trump card has points or rank > 7", () => {
     const trumpCard: Card = { id: "o1", suit: "oros", rank: 1, points: 11 }; // As de oros
     const sevenTrump: Card = { id: "o7", suit: "oros", rank: 7, points: 0 };
     const twoTrump: Card = { id: "o2", suit: "oros", rank: 2, points: 0 };
 
-    expect(canSwapTrump(sevenTrump, trumpCard)).toBe(true);
-    expect(canSwapTrump(twoTrump, trumpCard)).toBe(false); // Can only use 7 for high cards
+    expect(canSwapTrump(twoTrump, trumpCard)).toBe(true);
+    expect(canSwapTrump(sevenTrump, trumpCard)).toBe(false);
   });
 
-  it("allows swapping with 2 if trump card is white card <= 7", () => {
+  it("allows swapping with 7 if trump card is white card <= 7", () => {
     const trumpCard: Card = { id: "o5", suit: "oros", rank: 5, points: 0 };
     const twoTrump: Card = { id: "o2", suit: "oros", rank: 2, points: 0 };
     const sevenTrump: Card = { id: "o7", suit: "oros", rank: 7, points: 0 };
 
-    expect(canSwapTrump(twoTrump, trumpCard)).toBe(true);
-    expect(canSwapTrump(sevenTrump, trumpCard)).toBe(false);
+    expect(canSwapTrump(sevenTrump, trumpCard)).toBe(true);
+    expect(canSwapTrump(twoTrump, trumpCard)).toBe(false);
+  });
+
+  it("allows the 7 against a 6 trump (the reported case)", () => {
+    const trumpCard: Card = { id: "o6", suit: "oros", rank: 6, points: 0 };
+    const sevenTrump: Card = { id: "o7", suit: "oros", rank: 7, points: 0 };
+    const twoTrump: Card = { id: "o2", suit: "oros", rank: 2, points: 0 };
+
+    expect(canSwapTrump(sevenTrump, trumpCard)).toBe(true);
+    expect(canSwapTrump(twoTrump, trumpCard)).toBe(false);
   });
 
   it("rejects swap if player card is not of trump suit", () => {
