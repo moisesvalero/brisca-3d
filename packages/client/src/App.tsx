@@ -105,6 +105,16 @@ export const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    const unlock = () => sounds.unlock();
+    window.addEventListener("pointerdown", unlock, { once: true });
+    window.addEventListener("keydown", unlock, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!containerRef.current) return;
 
     let scene: TableScene | null = null;
@@ -161,6 +171,7 @@ export const App: React.FC = () => {
         state.deckCount,
         state.currentTrick,
         isMyTurn,
+        state.playerId,
       );
 
       if (
@@ -366,6 +377,8 @@ export const App: React.FC = () => {
             onLeave={() => setConfirmLeave(true)}
             onOpenRules={openRules}
             onPlayCard={playCardFromUi}
+            onZoomIn={() => sceneRef.current?.zoomBy(0.1)}
+            onZoomOut={() => sceneRef.current?.zoomBy(-0.1)}
           />
           {gameState.phase === "GAME_OVER" && (
             <GameOverModal

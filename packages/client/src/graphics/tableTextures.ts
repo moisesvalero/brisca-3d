@@ -1,7 +1,7 @@
 import * as THREE from "three";
 
 const FELT_WIDTH = 2048;
-const FELT_HEIGHT = Math.round((FELT_WIDTH * 10.4) / 14);
+const FELT_HEIGHT = FELT_WIDTH;
 
 function feltCanvas(): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
@@ -91,7 +91,7 @@ export function createFeltTexture(): THREE.CanvasTexture {
 export function createFeltBumpTexture(): THREE.CanvasTexture {
   const canvas = document.createElement("canvas");
   canvas.width = 1024;
-  canvas.height = Math.round((1024 * 10.4) / 14);
+  canvas.height = 1024;
   const ctx = canvas.getContext("2d");
   if (!ctx) return new THREE.CanvasTexture(canvas);
   const w = canvas.width;

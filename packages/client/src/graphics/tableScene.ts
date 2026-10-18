@@ -10,6 +10,45 @@ import {
 } from "./tableTextures.js";
 import { sounds } from "../audio/soundManager.js";
 
+// ---------------------------------------------------------------------------
+// Card and table constants
+// ---------------------------------------------------------------------------
+// The card geometry is already built flat in the XZ plane (its top face points
+// towards +Y), so an identity rotation is the equivalent of lying it on the
+// table with rotation.x = -Math.PI / 2. Hand/deck rotations must therefore be
+// yaw only, and all height separation must come from an explicit Y stack.
+const CARD_WIDTH = 1.96;
+const CARD_HEIGHT = 3.1;
+const CARD_THICKNESS = 0.024;
+const CARD_RADIUS = 0.12;
+const CARD_HALF_THICKNESS = CARD_THICKNESS / 2;
+
+const TABLE_TOP_Y = 0.002; // Felt surface.
+const CARD_GROUND_CLEARANCE = 0.001;
+const HAND_STACK_STEP = CARD_THICKNESS + 0.004;
+const HAND_BASE_Y = TABLE_TOP_Y + CARD_GROUND_CLEARANCE + CARD_HALF_THICKNESS;
+const HAND_BASE_Z = 3.4;
+const HAND_SPREAD_X = 1.9;
+const HAND_FAN_YAW = 0.13;
+const HAND_HOVER_LIFT_Y = 0.34;
+const OPPONENT_BASE_Z = -6.0;
+const OPPONENT_FAN_YAW = 0.1;
+
+const DECK_X = -4.7;
+const DECK_Z = -0.5;
+// The trump rests flat on the felt and the block starts right above its top.
+const TRUMP_CARD_Y = TABLE_TOP_Y + CARD_HALF_THICKNESS;
+const DECK_BASE_Y = TABLE_TOP_Y + CARD_THICKNESS + 0.002;
+const DECK_TOP_STACK_GAP = 0.002;
+const DECK_TOP_STACK_STEP = CARD_THICKNESS + DECK_TOP_STACK_GAP;
+const DECK_YAW = 0.026;
+const DECK_TOP_JITTER = 0.022;
+const DECK_TOP_YAW_JITTER = 0.02;
+
+function deckHeightFor(deckCount: number): number {
+  return Math.max(0.03, deckCount * 0.018);
+}
+
 export interface InteractiveCard {
   mesh: THREE.Mesh;
   card: Card;
@@ -17,6 +56,19 @@ export interface InteractiveCard {
   targetRot: THREE.Euler;
   isHovered: boolean;
   isPlayerHand: boolean;
+  pendingFlip?: boolean;
+  isTrick?: boolean;
+  collecting?: {
+    start: THREE.Vector3;
+    target: THREE.Vector3;
+    startTime: number;
+    duration: number;
+  };
+  flip?: {
+    to: THREE.Quaternion;
+    startTime: number;
+    duration: number;
+  };
   flight?: {
     start: THREE.Vector3;
     target: THREE.Vector3;
@@ -120,7 +172,10 @@ function createRoundedCardGeometry(
       (i + 1) / outline.length,
       1,
     );
-    indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
+    // Outward winding for the rounded edge. The previous order pointed these
+    // quads inwards: the near faces were culled and the inside of the far
+    // faces rendered as two sharp fins sticking out of the deck block.
+    indices.push(base, base + 2, base + 1, base, base + 3, base + 2);
   }
 
   const geo = new THREE.BufferGeometry();
@@ -139,7 +194,12 @@ function createRoundedCardGeometry(
   return geo;
 }
 
-const CARD_GEOMETRY = createRoundedCardGeometry(1.96, 3.1, 0.024, 0.12);
+const CARD_GEOMETRY = createRoundedCardGeometry(
+  CARD_WIDTH,
+  CARD_HEIGHT,
+  CARD_THICKNESS,
+  CARD_RADIUS,
+);
 
 export class TableScene {
   private container: HTMLElement;
@@ -161,10 +221,22 @@ export class TableScene {
   private hoveredCardId: string | null = null;
   private animFrameId: number | null = null;
   private isDestroyed = false;
+  private zoom = 1.3;
+  private targetZoom = 1.3;
+  private lastFrameTime = 0;
+  private localPlayerId = "";
+  private trickWinner = "";
   private resizeObserver: ResizeObserver | null = null;
   private deckBlockMesh: THREE.Mesh | null = null;
+  private currentHand: Card[] = [];
+  private handIsPlayable = false;
 
   public onCardClick?: (card: Card) => void;
+
+  public zoomBy(delta: number) {
+    // The current framing is the minimum. The control can only get closer.
+    this.targetZoom = THREE.MathUtils.clamp(this.targetZoom + delta, 1.3, 1.65);
+  }
 
   constructor(container: HTMLElement) {
     this.container = container;
@@ -253,8 +325,8 @@ export class TableScene {
     const hfov = 2 * Math.atan(Math.tan(vfov / 2) * aspect);
     const baseDistance = basePos.distanceTo(target);
     // Deck at x=-4.7 (left edge -5.68); rail at ±5.25; hand near z=+5.5.
-    const fitHalfWidth = 6.9;
-    const fitHalfDepth = 8.4;
+    const fitHalfWidth = 8.2;
+    const fitHalfDepth = 10.8;
     const distanceForWidth = fitHalfWidth / Math.tan(hfov / 2);
     const distanceForDepth = fitHalfDepth / Math.tan(vfov / 2);
     const distance = Math.max(baseDistance, distanceForWidth, distanceForDepth);
@@ -262,7 +334,7 @@ export class TableScene {
     this.baseCameraPos
       .copy(basePos)
       .sub(target)
-      .multiplyScalar(distance / baseDistance)
+      .multiplyScalar(distance / baseDistance / this.zoom)
       .add(target);
 
     this.camera.fov = fov;
@@ -341,7 +413,7 @@ export class TableScene {
       metalness: 0.03,
     });
     const woodBase = new THREE.Mesh(
-      new THREE.BoxGeometry(22, 0.6, 16),
+      new THREE.BoxGeometry(24, 0.6, 20),
       woodMat,
     );
     woodBase.position.y = -0.3;
@@ -357,9 +429,9 @@ export class TableScene {
       roughness: 0.96,
       metalness: 0,
     });
-    const felt = new THREE.Mesh(new THREE.PlaneGeometry(14, 10.4), feltMat);
+    const felt = new THREE.Mesh(new THREE.PlaneGeometry(16, 16), feltMat);
     felt.rotation.x = -Math.PI / 2;
-    felt.position.y = 0.002;
+    felt.position.y = TABLE_TOP_Y;
     felt.receiveShadow = true;
     this.scene.add(felt);
   }
@@ -439,20 +511,67 @@ export class TableScene {
     // Geometry groups: top/front, bottom/back, rounded side.
     const materials = [frontMat, backMat, edgeMat];
     const mesh = new THREE.Mesh(geo, materials);
+    mesh.rotation.order = "YXZ";
     mesh.castShadow = true;
     mesh.receiveShadow = false;
     return mesh;
   }
 
+  private deckSpawnPosition(deckCount: number): THREE.Vector3 {
+    // Only the spawn point floats above the pile. Resting heights are computed
+    // from DECK_BASE_Y so the deck stays aligned with the trump underneath.
+    return new THREE.Vector3(
+      DECK_X,
+      DECK_BASE_Y + deckHeightFor(deckCount) + CARD_HALF_THICKNESS + 0.14,
+      DECK_Z,
+    );
+  }
+
+  /**
+   * Lays the player's cards flat on the table.
+   *
+   * The old fan mixed yaw with roll (`rotation.z`) and a variable base Y, so
+   * the borders of adjacent cards crossed each other. Now the only rotation is
+   * yaw around the vertical axis, and every card owns a different Y plane:
+   * card N always sits above card N-1, which removes mesh clipping entirely.
+   */
+  private layoutHand() {
+    const count = this.currentHand.length;
+    const spreadX = count > 3 ? 1.85 : HAND_SPREAD_X;
+
+    this.currentHand.forEach((card, index) => {
+      const entry = this.cardsMap.get(card.id);
+      if (!entry) return;
+
+      const fan = index - (count - 1) / 2;
+      const hovered = entry.isHovered && this.handIsPlayable;
+      const stackY = HAND_BASE_Y + index * HAND_STACK_STEP;
+
+      entry.targetPos.set(
+        fan * spreadX,
+        stackY + (hovered ? HAND_HOVER_LIFT_Y : 0),
+        HAND_BASE_Z - (hovered ? 0.2 : 0),
+      );
+      entry.targetRot.set(0, fan * HAND_FAN_YAW * (hovered ? 0.5 : 1), 0);
+    });
+  }
+
   private startCardFlight(entry: InteractiveCard) {
-    const distance = entry.mesh.position.distanceTo(entry.targetPos);
-    if (distance < 0.35) return;
+    // Never restart the same flight on every authoritative update: that was
+    // the visible stutter/jumping. Only a new destination starts a new curve.
+    if (
+      entry.flight &&
+      entry.flight.target.distanceTo(entry.targetPos) < 0.03
+    ) {
+      return;
+    }
+    if (entry.mesh.position.distanceTo(entry.targetPos) < 0.2) return;
     entry.flight = {
       start: entry.mesh.position.clone(),
       target: entry.targetPos.clone(),
       startTime: performance.now(),
-      duration: 430,
-      arc: 0.55,
+      duration: 380,
+      arc: 0.12,
     };
   }
 
@@ -461,18 +580,21 @@ export class TableScene {
     opponentCount: number,
     trumpCard: Card | null,
     deckCount: number,
-    currentTrick: { leadCard?: Card; followCard?: Card },
+    currentTrick: { leadCard?: Card; followCard?: Card; winner?: string },
     isMyTurn: boolean,
+    myPlayerId = "",
   ) {
     const activeIds = new Set<string>();
+    this.localPlayerId = myPlayerId;
+    if (currentTrick.winner) this.trickWinner = currentTrick.winner;
 
     // 1. My hand (bottom)
-    myHand.forEach((card, idx) => {
+    myHand.forEach((card) => {
       activeIds.add(card.id);
       let entry = this.cardsMap.get(card.id);
       if (!entry) {
         const mesh = this.createCardMesh(card);
-        mesh.position.set(0, 2, 0); // Spawn from center
+        mesh.position.copy(this.deckSpawnPosition(deckCount));
         this.scene.add(mesh);
         entry = {
           mesh,
@@ -487,24 +609,11 @@ export class TableScene {
       }
 
       entry.isPlayerHand = true;
-      const count = myHand.length;
-      // Bottom-edge pivot: the base stays on the felt when the card tilts.
-      const spreadX = count === 2 ? 5.2 : 2.2;
-      const offsetX = (idx - (count - 1) / 2) * spreadX;
-      const fan = idx - (count - 1) / 2;
-      const baseZ = 2.4;
-      const baseY = 0.06;
-      const tiltX = 0;
-
-      if (entry.isHovered && isMyTurn) {
-        entry.targetPos.set(offsetX, baseY + 0.3, baseZ - 0.25);
-        entry.targetRot.set(tiltX, 0, fan * -0.03);
-      } else {
-        entry.targetPos.set(offsetX, baseY, baseZ);
-        entry.targetRot.set(tiltX, 0, fan * -0.05);
-      }
-      this.startCardFlight(entry);
     });
+
+    this.currentHand = [...myHand];
+    this.handIsPlayable = isMyTurn;
+    this.layoutHand();
 
     // 2. Opponent hand (top, facing down)
     for (let i = 0; i < opponentCount; i++) {
@@ -514,7 +623,8 @@ export class TableScene {
       if (!entry) {
         const dummyCard: Card = { id: oppId, suit: "oros", rank: 1, points: 0 };
         const mesh = this.createCardMesh(dummyCard);
-        mesh.position.set(0, 2, -2);
+        mesh.position.copy(this.deckSpawnPosition(deckCount));
+        mesh.rotation.set(Math.PI, 0, 0);
         this.scene.add(mesh);
         entry = {
           mesh,
@@ -527,12 +637,15 @@ export class TableScene {
         this.cardsMap.set(oppId, entry);
       }
 
-      // Rival hand flat, face down, in its own top zone.
-      const spreadX = opponentCount === 2 ? 5.2 : 2.2;
-      const offsetX = (i - (opponentCount - 1) / 2) * spreadX;
-      entry.targetPos.set(offsetX, 0.03 + i * 0.004, -3.8);
-      entry.targetRot.set(Math.PI, 0, 0);
-      this.startCardFlight(entry);
+      // Mirror of the player's hand: flat cards, strict Y stack, yaw only.
+      const spreadX = opponentCount > 3 ? 1.85 : HAND_SPREAD_X;
+      const fan = i - (opponentCount - 1) / 2;
+      entry.targetPos.set(
+        fan * spreadX,
+        HAND_BASE_Y + i * HAND_STACK_STEP,
+        OPPONENT_BASE_Z,
+      );
+      entry.targetRot.set(Math.PI, fan * OPPONENT_FAN_YAW, 0);
     }
 
     // 3. Trump card (left, face up at 90 deg)
@@ -554,14 +667,14 @@ export class TableScene {
       }
       // The trump is face up UNDER the deck: the stack covers its left side
       // and the right part (rank/face) peeks out, as in the real game.
-      entry.targetPos.set(-4.0, 0.02, -0.5);
+      entry.targetPos.set(-4.0, TRUMP_CARD_Y, DECK_Z);
       entry.targetRot.set(0, Math.PI / 2, 0);
     }
 
     // 4. Deck block: a real 3D stack whose height follows the remaining cards.
     if (deckCount > 0) {
-      const deckHeight = Math.max(0.03, deckCount * 0.018);
-      const deckBottom = 0.034;
+      const deckHeight = deckHeightFor(deckCount);
+      const deckTopY = DECK_BASE_Y + deckHeight;
       if (!this.deckBlockMesh) {
         const backTex = getCardBackTexture();
         const pageTex = createDeckPageTexture();
@@ -575,20 +688,32 @@ export class TableScene {
           roughness: 0.82,
           metalness: 0,
         });
-        this.deckBlockMesh = new THREE.Mesh(
-          new THREE.BoxGeometry(1.96, 1, 3.1),
-          [sideMat, sideMat, topMat, topMat, sideMat, sideMat],
-        );
+        // Use the exact rounded card silhouette for the whole stack, so
+        // every visible layer has the same 0.12 corner radius as the cards.
+        this.deckBlockMesh = new THREE.Mesh(CARD_GEOMETRY.clone(), [
+          topMat,
+          topMat,
+          sideMat,
+        ]);
         this.deckBlockMesh.castShadow = true;
         this.deckBlockMesh.receiveShadow = false;
         this.scene.add(this.deckBlockMesh);
       }
-      this.deckBlockMesh.scale.y = deckHeight;
-      this.deckBlockMesh.position.set(-4.7, deckBottom + deckHeight / 2, -0.5);
-      this.deckBlockMesh.rotation.set(0, 0, 0.026);
+      // CARD_GEOMETRY is CARD_THICKNESS thick; stretch only that axis.
+      this.deckBlockMesh.scale.set(1, deckHeight / CARD_THICKNESS, 1);
+      this.deckBlockMesh.position.set(
+        DECK_X,
+        DECK_BASE_Y + deckHeight / 2,
+        DECK_Z,
+      );
+      // A tiny yaw keeps the pile natural without tilting it off the table.
+      this.deckBlockMesh.rotation.set(0, DECK_YAW, 0);
 
       // A few slightly misaligned top cards so the pile looks shuffled.
-      for (let i = 0; i < 3; i += 1) {
+      // Strict Y steps prevent contact, and the deterministic yaw jitter
+      // stops the pile from twitching on every server update.
+      const topCardBaseY = deckTopY + CARD_HALF_THICKNESS + DECK_TOP_STACK_GAP;
+      for (let i = 0; i < 5; i += 1) {
         const deckId = `deck_top_${i}`;
         activeIds.add(deckId);
         let entry = this.cardsMap.get(deckId);
@@ -600,7 +725,8 @@ export class TableScene {
             points: 0,
           };
           const mesh = this.createCardMesh(dummyCard);
-          mesh.position.set(0, 2, 0);
+          mesh.position.copy(this.deckSpawnPosition(deckCount));
+          mesh.rotation.set(Math.PI, DECK_YAW, 0);
           this.scene.add(mesh);
           entry = {
             mesh,
@@ -612,12 +738,20 @@ export class TableScene {
           };
           this.cardsMap.set(deckId, entry);
         }
+        const jitterX = Math.sin(i * 2.399) * DECK_TOP_JITTER;
+        const jitterZ = Math.cos(i * 1.731) * DECK_TOP_JITTER;
+        const cosYaw = Math.cos(DECK_YAW);
+        const sinYaw = Math.sin(DECK_YAW);
         entry.targetPos.set(
-          -4.7 + (Math.random() - 0.5) * 0.035,
-          deckBottom + deckHeight + 0.002 + i * 0.024,
-          -0.5 + (Math.random() - 0.5) * 0.035,
+          DECK_X + jitterX * cosYaw + jitterZ * sinYaw,
+          topCardBaseY + i * DECK_TOP_STACK_STEP,
+          DECK_Z - jitterX * sinYaw + jitterZ * cosYaw,
         );
-        entry.targetRot.set(Math.PI, 0, 0.03 + (Math.random() - 0.5) * 0.025);
+        entry.targetRot.set(
+          Math.PI,
+          DECK_YAW + Math.sin(i * 1.117) * DECK_TOP_YAW_JITTER,
+          0,
+        );
       }
     } else if (this.deckBlockMesh) {
       this.scene.remove(this.deckBlockMesh);
@@ -630,7 +764,8 @@ export class TableScene {
       let entry = this.cardsMap.get(currentTrick.leadCard.id);
       if (!entry) {
         const mesh = this.createCardMesh(currentTrick.leadCard);
-        this.scene.add(mesh);
+        mesh.position.set(0, 0.03, -6.0);
+        mesh.rotation.set(Math.PI, 0, 0);
         entry = {
           mesh,
           card: currentTrick.leadCard,
@@ -638,12 +773,16 @@ export class TableScene {
           targetRot: new THREE.Euler(),
           isHovered: false,
           isPlayerHand: false,
+          pendingFlip: true,
         };
         this.cardsMap.set(currentTrick.leadCard.id, entry);
+        this.scene.add(mesh);
       }
-      // Trick cards lie flat and side by side in the centre zone.
-      entry.targetPos.set(-0.35, 0.015, -0.5);
+      entry.isPlayerHand = false;
+      entry.isTrick = true;
+      entry.targetPos.set(-1.05, 0.09, -2.4);
       entry.targetRot.set(0, 0, -0.03);
+      this.startCardFlight(entry);
     }
 
     if (currentTrick.followCard) {
@@ -651,7 +790,8 @@ export class TableScene {
       let entry = this.cardsMap.get(currentTrick.followCard.id);
       if (!entry) {
         const mesh = this.createCardMesh(currentTrick.followCard);
-        this.scene.add(mesh);
+        mesh.position.set(0, 0.03, -6.0);
+        mesh.rotation.set(Math.PI, 0, 0);
         entry = {
           mesh,
           card: currentTrick.followCard,
@@ -659,19 +799,36 @@ export class TableScene {
           targetRot: new THREE.Euler(),
           isHovered: false,
           isPlayerHand: false,
+          pendingFlip: true,
         };
         this.cardsMap.set(currentTrick.followCard.id, entry);
+        this.scene.add(mesh);
       }
-      entry.targetPos.set(0.35, 0.045, -0.55);
+      entry.isPlayerHand = false;
+      entry.isTrick = true;
+      entry.targetPos.set(1.05, 0.115, -2.45);
       entry.targetRot.set(0, 0, 0.03);
+      this.startCardFlight(entry);
     }
 
-    // Cleanup cards no longer in play
+    // Cleanup cards no longer in play. Trick cards are collected toward the
+    // winner instead of vanishing from one frame to the next.
     for (const [id, entry] of this.cardsMap.entries()) {
-      if (!activeIds.has(id)) {
-        this.scene.remove(entry.mesh);
-        this.cardsMap.delete(id);
+      if (activeIds.has(id)) continue;
+      if (entry.collecting) continue;
+      if (entry.isTrick) {
+        entry.isTrick = false;
+        const localWon = this.trickWinner === this.localPlayerId;
+        entry.collecting = {
+          start: entry.mesh.position.clone(),
+          target: new THREE.Vector3(5.2, 0.07, localWon ? 3.2 : -6.0),
+          startTime: performance.now(),
+          duration: 380,
+        };
+        continue;
       }
+      this.scene.remove(entry.mesh);
+      this.cardsMap.delete(id);
     }
   }
 
@@ -705,10 +862,13 @@ export class TableScene {
       }
     }
 
-    if (newlyHoveredId && newlyHoveredId !== this.hoveredCardId) {
-      sounds.playCardHover();
+    if (newlyHoveredId !== this.hoveredCardId) {
+      if (newlyHoveredId) sounds.playCardHover();
+      this.hoveredCardId = newlyHoveredId;
+      // Hover only changes the target layout; re-apply it so the lifted card
+      // rises on the pointer event instead of waiting for the next move.
+      this.layoutHand();
     }
-    this.hoveredCardId = newlyHoveredId;
     this.container.style.cursor = newlyHoveredId ? "pointer" : "default";
   };
 
@@ -743,10 +903,50 @@ export class TableScene {
     if (this.isDestroyed) return;
     this.animFrameId = requestAnimationFrame(this.animate);
 
-    // Parabolic flight for moving cards, gentle settle otherwise.
     const now = performance.now();
-    for (const entry of this.cardsMap.values()) {
+    const dt = this.lastFrameTime
+      ? Math.min(0.05, (now - this.lastFrameTime) / 1000)
+      : 1 / 60;
+    this.lastFrameTime = now;
+    const handBlend = 1 - Math.exp(-4.5 * dt);
+    const zoomBlend = 1 - Math.exp(-9 * dt);
+
+    if (Math.abs(this.zoom - this.targetZoom) > 0.0005) {
+      this.zoom += (this.targetZoom - this.zoom) * zoomBlend;
+      if (Math.abs(this.zoom - this.targetZoom) < 0.001) {
+        this.zoom = this.targetZoom;
+      }
+      this.updateCameraResponsive(
+        this.container.clientWidth || window.innerWidth || 800,
+        this.container.clientHeight || window.innerHeight || 600,
+      );
+    }
+
+    // Parabolic flight for moving cards, gentle settle otherwise.
+    for (const [id, entry] of this.cardsMap.entries()) {
+      if (entry.collecting) {
+        const ct = Math.min(
+          1,
+          (now - entry.collecting.startTime) / entry.collecting.duration,
+        );
+        const ce = ct * ct * (3 - 2 * ct);
+        entry.mesh.position.lerpVectors(
+          entry.collecting.start,
+          entry.collecting.target,
+          ce,
+        );
+        entry.mesh.rotation.z = 0.04;
+        entry.mesh.scale.setScalar(1 - ce * 0.92);
+        if (ct >= 1) {
+          this.scene.remove(entry.mesh);
+          this.cardsMap.delete(id);
+        }
+        continue;
+      }
       if (entry.flight) {
+        // Follow the current hand slot so the card never snaps when the
+        // hand re-spaces while it is still being drawn.
+        entry.flight.target.copy(entry.targetPos);
         const t = Math.min(
           1,
           (now - entry.flight.startTime) / entry.flight.duration,
@@ -771,12 +971,39 @@ export class TableScene {
           Math.sin(Math.PI * t) * entry.flight.arc;
         if (t >= 1) entry.flight = undefined;
       } else {
-        entry.mesh.position.lerp(entry.targetPos, 0.16);
+        entry.mesh.position.lerp(entry.targetPos, handBlend);
       }
-      entry.mesh.quaternion.slerp(
-        new THREE.Quaternion().setFromEuler(entry.targetRot),
-        0.16,
-      );
+      const targetQuat = new THREE.Quaternion().setFromEuler(entry.targetRot);
+      if (entry.pendingFlip && !entry.flight) {
+        entry.flip = {
+          to: targetQuat,
+          startTime: now,
+          duration: 300,
+        };
+        entry.pendingFlip = false;
+      }
+      if (entry.flight && entry.pendingFlip) {
+        // Keep the rival card face down while it travels to the trick.
+      } else if (entry.flip) {
+        const ft = Math.min(
+          1,
+          (now - entry.flip.startTime) / entry.flip.duration,
+        );
+        if (ft < 0.5) {
+          entry.mesh.scale.x = Math.max(0.02, 1 - ft * 2);
+        } else {
+          entry.mesh.quaternion.copy(entry.flip.to);
+          entry.mesh.scale.x = Math.max(0.02, (ft - 0.5) * 2);
+        }
+        if (ft >= 1) {
+          entry.mesh.scale.x = 1;
+          entry.mesh.quaternion.copy(entry.flip.to);
+          entry.flip = undefined;
+        }
+      } else {
+        entry.mesh.quaternion.slerp(targetQuat, handBlend);
+        entry.mesh.scale.x = 1;
+      }
     }
 
     // Camera tilt reacting to cursor + Screen Shake

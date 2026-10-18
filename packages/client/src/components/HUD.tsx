@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Volume2,
   VolumeX,
@@ -11,6 +11,8 @@ import {
   WifiOff,
   Wifi,
   BookOpen,
+  Plus,
+  Minus,
 } from "lucide-react";
 import { ClientState, ConnectionStatus } from "../network/gameClient.js";
 import type { Card } from "@brisca/core";
@@ -29,6 +31,8 @@ interface HUDProps {
   onLeave: () => void;
   onOpenRules: () => void;
   onPlayCard: (card: Card) => void;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
 }
 
 const RANK_LABELS: Record<number, string> = {
@@ -56,13 +60,33 @@ export const HUD: React.FC<HUDProps> = ({
   onLeave,
   onOpenRules,
   onPlayCard,
+  onZoomIn,
+  onZoomOut,
 }) => {
   const [copied, setCopied] = useState(false);
+  const [trickRevealed, setTrickRevealed] = useState(false);
+  const [shownScores, setShownScores] = useState(state.scores);
   const isMyTurn = state.turn === state.playerId;
   const opponentId = state.playerId === "p1" ? "p2" : "p1";
-  const myScore = state.scores[state.playerId];
-  const oppScore = state.scores[opponentId];
+  const myScore = shownScores[state.playerId];
+  const oppScore = shownScores[opponentId];
   const isOnlineRoom = state.isOnline && state.roomCode !== "SOLO";
+
+  useEffect(() => {
+    if (state.phase !== "RESOLVING_TRICK") {
+      setTrickRevealed(false);
+      return;
+    }
+    setTrickRevealed(false);
+    const timer = window.setTimeout(() => setTrickRevealed(true), 1600);
+    return () => window.clearTimeout(timer);
+  }, [state.phase, state.currentTrick.winner, state.currentTrick.points]);
+
+  useEffect(() => {
+    if (state.phase !== "RESOLVING_TRICK" || trickRevealed) {
+      setShownScores(state.scores);
+    }
+  }, [state.phase, state.scores, trickRevealed]);
 
   const canSwap =
     state.phase === "PLAYER_TURN" &&
@@ -83,9 +107,11 @@ export const HUD: React.FC<HUDProps> = ({
   const turnMessage = !state.opponentConnected
     ? "⏳ Rival desconectado — esperando su vuelta…"
     : state.phase === "RESOLVING_TRICK"
-      ? state.currentTrick.winner === state.playerId
-        ? `✨ ¡Baza ganada! (+${state.currentTrick.points} pts)`
-        : `⚔️ El rival se lleva la baza (+${state.currentTrick.points} pts)`
+      ? !trickRevealed
+        ? "🃏 Mostrando la baza…"
+        : state.currentTrick.winner === state.playerId
+          ? `✨ ¡Baza ganada! (+${state.currentTrick.points} pts)`
+          : `⚔️ El rival se lleva la baza (+${state.currentTrick.points} pts)`
       : isMyTurn
         ? "🎮 TU TURNO — Elige una carta"
         : "⏳ Esperando jugada del rival…";
@@ -162,6 +188,32 @@ export const HUD: React.FC<HUDProps> = ({
             )}
           </div>
 
+          <div
+            className="flex items-center gap-0.5 bg-slate-900/85 backdrop-blur-md border border-slate-800 p-1 sm:p-1.5 rounded-2xl"
+            role="group"
+            aria-label="Zoom de la mesa"
+          >
+            <button
+              onClick={onZoomOut}
+              className="p-1.5 sm:p-2 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 transition"
+              title="Volver al zoom por defecto"
+              aria-label="Volver al zoom por defecto"
+            >
+              <Minus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            </button>
+            <span className="hidden sm:inline text-[9px] font-black tracking-widest text-slate-500 px-0.5 select-none">
+              ZOOM
+            </span>
+            <button
+              onClick={onZoomIn}
+              className="p-1.5 sm:p-2 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 transition"
+              title="Acercar más"
+              aria-label="Acercar más"
+            >
+              <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            </button>
+          </div>
+
           <div className="flex gap-1 bg-slate-900/85 backdrop-blur-md border border-slate-800 p-1 sm:p-1.5 rounded-2xl">
             <button
               onClick={onToggleSound}
@@ -226,9 +278,11 @@ export const HUD: React.FC<HUDProps> = ({
             !state.opponentConnected
               ? "bg-rose-500/20 text-rose-200 border-rose-500/40"
               : state.phase === "RESOLVING_TRICK"
-                ? state.currentTrick.winner === state.playerId
-                  ? "bg-amber-500/30 text-amber-300 border-amber-400 arcade-glow-gold scale-105"
-                  : "bg-rose-500/20 text-rose-300 border-rose-500/40"
+                ? !trickRevealed
+                  ? "bg-slate-900/70 text-slate-400 border-slate-800"
+                  : state.currentTrick.winner === state.playerId
+                    ? "bg-amber-500/30 text-amber-300 border-amber-400 arcade-glow-gold scale-105"
+                    : "bg-rose-500/20 text-rose-300 border-rose-500/40"
                 : isMyTurn
                   ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/50 arcade-glow-emerald animate-pulse"
                   : "bg-slate-900/70 text-slate-400 border-slate-800"
