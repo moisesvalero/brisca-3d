@@ -1,6 +1,6 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+/* Keep the existing theme (custom colors, fonts and keyframes) on Tailwind 4. */
+@config "../tailwind.config.js";
 
 @layer base {
   body {

@@ -3,3 +3,6 @@ packages:
 allowBuilds:
   esbuild: true
   workerd: true
+# GHSA-g7r4-m6w7-qqqr: 0.27.x allows arbitrary file reads in the dev server.
+overrides:
+  "esbuild@>=0.27.3 <0.28.1": "0.28.2"
