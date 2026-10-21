@@ -42,28 +42,29 @@ export function resolveTrick(
 }
 
 /**
- * Regla del 7 y 2 de esta versión:
- * - El 7 de triunfo solo puede cambiar una carta alta
- *   (As, Tres, Rey, Caballo o Sota).
- * - El 2 de triunfo solo puede cambiar el 7 de triunfo.
- * Cualquier otro intercambio se rechaza. El servidor valida con esta misma
- * función, así que no depende de lo que haga el cliente.
+ * Regla oficial del 7 y el 2:
+ * - Si el triunfo descubierto es mayor que 7 (As, Tres, Rey, Caballo o Sota),
+ *   el jugador que tenga el 7 de triunfo puede cambiarlo por esa carta.
+ * - Si el triunfo descubierto es 7 o menor (7, 6, 5, 4 o 2), el cambio se
+ *   hace con el 2 de triunfo.
+ * - En ambos casos el jugador debe haber ganado al menos una baza.
+ * El mazo debe conservar cartas; eso lo valida swapTrumpCard.
+ * El servidor usa esta misma función, así que no depende del cliente.
  */
 export function canSwapTrump(
   playerCard: Card,
   currentTrumpCard: Card,
+  playerHasWonTrick: boolean,
 ): boolean {
+  if (!playerHasWonTrick) {
+    return false;
+  }
   if (playerCard.suit !== currentTrumpCard.suit) {
     return false;
   }
 
-  if (playerCard.rank === 7) {
-    return currentTrumpCard.points > 0 || currentTrumpCard.rank > 7;
-  }
+  const currentTrumpIsHigh =
+    currentTrumpCard.rank > 7 || currentTrumpCard.points > 0;
 
-  if (playerCard.rank === 2) {
-    return currentTrumpCard.rank === 7;
-  }
-
-  return false;
+  return currentTrumpIsHigh ? playerCard.rank === 7 : playerCard.rank === 2;
 }

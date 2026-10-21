@@ -123,6 +123,7 @@ describe("GameServer (shared session logic)", () => {
       opponentName: "Ana",
       opponentConnected: true,
       deckCount: 33,
+      hasWonTrick: false,
     });
     expect(state.payload.myHand).toHaveLength(3);
     expect(state.payload.trumpTaken).toBe(false);
@@ -173,6 +174,9 @@ describe("GameServer (shared session logic)", () => {
     game.trumpSuit = "oros";
     game.trumpCard = { id: "o11", suit: "oros", rank: 11, points: 3 };
     game.hands.p1[0] = { id: "o2", suit: "oros", rank: 2, points: 0 };
+    game.tricksWon.p1 = [
+      { id: "won-trick", suit: "copas", rank: 4, points: 0 },
+    ];
     p1.clear();
 
     server.handleMessage(
@@ -184,6 +188,93 @@ describe("GameServer (shared session logic)", () => {
     expect(error.payload!.code).toBe("INVALID_MOVE");
     expect(game.trumpCard.id).toBe("o11");
     expect(game.hands.p1.some((card) => card.id === "o2")).toBe(true);
+  });
+
+  it("rejects any trump swap before winning a trick", async () => {
+    await createAndJoin();
+    const game = server.rooms.get("ABCD")!.getGame()!;
+
+    game.phase = "PLAYER_TURN";
+    game.turn = "p1";
+    game.trumpSuit = "oros";
+    game.trumpCard = { id: "o11", suit: "oros", rank: 11, points: 3 };
+    game.hands.p1[0] = { id: "o7", suit: "oros", rank: 7, points: 0 };
+    game.tricksWon.p1 = [];
+    p1.clear();
+
+    server.handleMessage(
+      p1,
+      JSON.stringify({ type: "SWAP_TRUMP", cardId: "o7" }),
+    );
+
+    const error = await waitFor(p1, "ERROR");
+    expect(error.payload!.code).toBe("INVALID_MOVE");
+    expect(error.payload!.message).toContain("ganar una baza");
+    expect(game.trumpCard.id).toBe("o11");
+    expect(game.hands.p1.some((card) => card.id === "o7")).toBe(true);
+  });
+
+  it("accepts a legal 7-for-figure swap and gives the old trump to the player", async () => {
+    await createAndJoin();
+    const game = server.rooms.get("ABCD")!.getGame()!;
+
+    game.phase = "PLAYER_TURN";
+    game.turn = "p1";
+    game.trumpSuit = "oros";
+    game.trumpCard = { id: "o11", suit: "oros", rank: 11, points: 3 };
+    game.hands.p1[0] = { id: "o7", suit: "oros", rank: 7, points: 0 };
+    game.tricksWon.p1 = [
+      { id: "won-trick", suit: "copas", rank: 4, points: 0 },
+    ];
+    p1.clear();
+
+    server.handleMessage(
+      p1,
+      JSON.stringify({ type: "SWAP_TRUMP", cardId: "o7" }),
+    );
+
+    const state = await waitFor(p1, "GAME_STATE");
+    expect(state.payload.trumpCard.id).toBe("o7");
+    expect(state.payload.hasWonTrick).toBe(true);
+    expect(state.payload.myHand.some((card: any) => card.id === "o11")).toBe(
+      true,
+    );
+    expect(state.payload.myHand.some((card: any) => card.id === "o7")).toBe(
+      false,
+    );
+  });
+
+  it("allows a legal swap during trick resolution before the last draw", async () => {
+    await createAndJoin();
+    const game = server.rooms.get("ABCD")!.getGame()!;
+
+    game.phase = "RESOLVING_TRICK";
+    game.turn = "p1";
+    game.trumpSuit = "oros";
+    game.trumpCard = { id: "o11", suit: "oros", rank: 11, points: 3 };
+    game.hands.p1[0] = { id: "o7", suit: "oros", rank: 7, points: 0 };
+    game.deck = [{ id: "c5", suit: "copas", rank: 5, points: 0 }];
+    game.tricksWon.p1 = [];
+    game.currentTrick = {
+      leadPlayer: "p1",
+      leadCard: { id: "o1", suit: "oros", rank: 1, points: 11 },
+      followCard: { id: "o2", suit: "oros", rank: 2, points: 0 },
+      winner: "p1",
+      points: 11,
+    };
+    p1.clear();
+
+    server.handleMessage(
+      p1,
+      JSON.stringify({ type: "SWAP_TRUMP", cardId: "o7" }),
+    );
+
+    const state = await waitFor(p1, "GAME_STATE");
+    expect(state.payload.trumpCard.id).toBe("o7");
+    expect(state.payload.hasWonTrick).toBe(true);
+    expect(state.payload.myHand.some((card: any) => card.id === "o11")).toBe(
+      true,
+    );
   });
 
   it("plays a complete game to 120 points", async () => {

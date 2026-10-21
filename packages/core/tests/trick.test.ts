@@ -43,54 +43,72 @@ describe("Trick Resolution", () => {
   });
 });
 
-describe("Trump Card Swap (Regla del 7 y 2)", () => {
+describe("Trump Card Swap (regla oficial del 7 y 2)", () => {
   const makeCard = (rank: Card["rank"], suit: Card["suit"] = "oros"): Card => ({
     id: `${suit}_${rank}`,
     suit,
     rank,
     points: CARD_POINTS[rank],
   });
+  const highRanks = new Set([1, 3, 10, 11, 12]);
+  const lowRanks = new Set([2, 4, 5, 6, 7]);
 
-  it("solo permite 7 contra cartas altas y 2 contra el 7, en todas las combinaciones", () => {
-    const allowed = new Set(["7:1", "7:3", "7:10", "7:11", "7:12", "2:7"]);
-
+  it("aplica 7 contra triunfo alto y 2 contra triunfo de 7 o menor", () => {
     for (const trumpRank of RANKS) {
       for (const playerRank of [2, 7] as const) {
+        const expected =
+          playerRank === 7 ? highRanks.has(trumpRank) : lowRanks.has(trumpRank);
+
         expect(
-          canSwapTrump(makeCard(playerRank), makeCard(trumpRank)),
-          `${playerRank} contra ${trumpRank}`,
-        ).toBe(allowed.has(`${playerRank}:${trumpRank}`));
+          canSwapTrump(makeCard(playerRank), makeCard(trumpRank), true),
+          `${playerRank} contra ${trumpRank} con baza ganada`,
+        ).toBe(expected);
+        expect(
+          canSwapTrump(makeCard(playerRank), makeCard(trumpRank), false),
+          `${playerRank} contra ${trumpRank} sin baza ganada`,
+        ).toBe(false);
       }
     }
   });
 
-  it("rechaza el 2 contra un caballo (el fallo reportado)", () => {
-    expect(canSwapTrump(makeCard(2), makeCard(11))).toBe(false);
-    expect(canSwapTrump(makeCard(2), makeCard(12))).toBe(false);
-    expect(canSwapTrump(makeCard(2), makeCard(10))).toBe(false);
-    expect(canSwapTrump(makeCard(2), makeCard(1))).toBe(false);
-    expect(canSwapTrump(makeCard(2), makeCard(3))).toBe(false);
-  });
-
-  it("rechaza el 7 contra cartas blancas distintas del 7", () => {
-    for (const rank of [2, 4, 5, 6] as const) {
-      expect(canSwapTrump(makeCard(7), makeCard(rank))).toBe(false);
+  it("rechaza el 2 contra una figura aunque ya haya ganado baza", () => {
+    for (const rank of [1, 3, 10, 11, 12] as const) {
+      expect(canSwapTrump(makeCard(2), makeCard(rank), true)).toBe(false);
     }
   });
 
-  it("solo el 2 puede cambiar el 7 y solo el 7 puede cambiar una figura", () => {
-    expect(canSwapTrump(makeCard(2), makeCard(7))).toBe(true);
-    expect(canSwapTrump(makeCard(7), makeCard(11))).toBe(true);
-    expect(canSwapTrump(makeCard(7), makeCard(7))).toBe(false);
+  it("permite el 7 contra As, Tres y figuras", () => {
+    for (const rank of [1, 3, 10, 11, 12] as const) {
+      expect(canSwapTrump(makeCard(7), makeCard(rank), true)).toBe(true);
+    }
+  });
+
+  it("permite el 2 contra triunfos de 7 o menor", () => {
+    for (const rank of [4, 5, 6, 7] as const) {
+      expect(canSwapTrump(makeCard(2), makeCard(rank), true)).toBe(true);
+    }
+  });
+
+  it("rechaza el 7 contra triunfos de 7 o menor", () => {
+    for (const rank of [2, 4, 5, 6, 7] as const) {
+      expect(canSwapTrump(makeCard(7), makeCard(rank), true)).toBe(false);
+    }
+  });
+
+  it("exige haber ganado al menos una baza", () => {
+    expect(canSwapTrump(makeCard(7), makeCard(11), false)).toBe(false);
+    expect(canSwapTrump(makeCard(2), makeCard(7), false)).toBe(false);
+    expect(canSwapTrump(makeCard(7), makeCard(11), true)).toBe(true);
+    expect(canSwapTrump(makeCard(2), makeCard(7), true)).toBe(true);
   });
 
   it("rechaza cartas distintas del 2 o el 7", () => {
-    expect(canSwapTrump(makeCard(3), makeCard(11))).toBe(false);
-    expect(canSwapTrump(makeCard(10), makeCard(7))).toBe(false);
+    expect(canSwapTrump(makeCard(3), makeCard(11), true)).toBe(false);
+    expect(canSwapTrump(makeCard(10), makeCard(7), true)).toBe(false);
   });
 
   it("rechaza si la carta no es del palo del triunfo", () => {
-    expect(canSwapTrump(makeCard(7, "copas"), makeCard(1))).toBe(false);
-    expect(canSwapTrump(makeCard(2, "copas"), makeCard(7))).toBe(false);
+    expect(canSwapTrump(makeCard(7, "copas"), makeCard(1), true)).toBe(false);
+    expect(canSwapTrump(makeCard(2, "copas"), makeCard(7), true)).toBe(false);
   });
 });

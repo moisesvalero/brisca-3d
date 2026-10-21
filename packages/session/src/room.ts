@@ -241,7 +241,17 @@ export class Room {
     if (!card) {
       throw new RoomError("INVALID_MOVE", "No tienes esa carta");
     }
-    if (!canSwapTrump(card, this.game.trumpCard)) {
+    const hasWonTrick =
+      this.game.tricksWon[playerId].length > 0 ||
+      (this.game.phase === "RESOLVING_TRICK" &&
+        this.game.currentTrick.winner === playerId);
+    if (!hasWonTrick) {
+      throw new RoomError(
+        "INVALID_MOVE",
+        "Solo puedes cambiar el triunfo después de ganar una baza",
+      );
+    }
+    if (!canSwapTrump(card, this.game.trumpCard, hasWonTrick)) {
       throw new RoomError(
         "INVALID_MOVE",
         "Esa carta no puede cambiar el triunfo",
@@ -378,6 +388,10 @@ export class Room {
       trumpCard: this.game.trumpCard,
       trumpSuit: this.game.trumpSuit,
       trumpTaken: this.game.trumpTaken,
+      hasWonTrick:
+        this.game.tricksWon[playerId].length > 0 ||
+        (this.game.phase === "RESOLVING_TRICK" &&
+          this.game.currentTrick.winner === playerId),
       myHand: this.game.hands[playerId],
       opponentCardCount: opponent ? this.game.hands[opponent.id].length : 0,
       deckCount: this.game.deck.length,

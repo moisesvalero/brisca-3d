@@ -93,7 +93,9 @@ export function playCard(
 }
 
 export function collectTrick(game: GameState): GameState {
-  if (game.phase !== "RESOLVING_TRICK" && !game.currentTrick.winner) {
+  // Idempotent: a late timer or a duplicate call must never score the final
+  // trick twice once the game is over.
+  if (game.phase !== "RESOLVING_TRICK" || !game.currentTrick.winner) {
     return game;
   }
 
@@ -153,8 +155,8 @@ export function swapTrumpCard(
   playerId: PlayerId,
   cardId: string,
 ): GameState {
-  if (game.phase !== "PLAYER_TURN") {
-    throw new Error("Can only swap trump during active player turn");
+  if (game.phase !== "PLAYER_TURN" && game.phase !== "RESOLVING_TRICK") {
+    throw new Error("Can only swap trump during an active hand");
   }
   if (game.deck.length === 0) {
     throw new Error("Cannot swap trump card once deck is exhausted");
@@ -167,7 +169,11 @@ export function swapTrumpCard(
   }
 
   const card = hand[cardIndex];
-  if (!canSwapTrump(card, game.trumpCard)) {
+  const wonCurrentTrick =
+    game.phase === "RESOLVING_TRICK" && game.currentTrick.winner === playerId;
+  const playerHasWonTrick =
+    game.tricksWon[playerId].length > 0 || wonCurrentTrick;
+  if (!canSwapTrump(card, game.trumpCard, playerHasWonTrick)) {
     throw new Error(
       `Cannot swap trump card ${game.trumpCard.id} with ${card.id}`,
     );

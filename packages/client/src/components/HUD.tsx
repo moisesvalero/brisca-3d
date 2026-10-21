@@ -89,9 +89,12 @@ export const HUD: React.FC<HUDProps> = ({
   }, [state.phase, state.scores, trickRevealed]);
 
   const canSwap =
-    state.phase === "PLAYER_TURN" &&
+    (state.phase === "PLAYER_TURN" || state.phase === "RESOLVING_TRICK") &&
     state.deckCount > 0 &&
-    state.myHand.some((card) => canSwapTrump(card, state.trumpCard));
+    state.hasWonTrick &&
+    state.myHand.some((card) =>
+      canSwapTrump(card, state.trumpCard, state.hasWonTrick),
+    );
 
   const copyInvite = async () => {
     const url = buildInviteUrl(state.roomCode);

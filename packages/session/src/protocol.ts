@@ -29,6 +29,8 @@ export interface ClientGameState {
   trumpCard: Card;
   trumpSuit: string;
   trumpTaken: boolean;
+  /** El jugador que recibe el estado ya ha ganado al menos una baza. */
+  hasWonTrick: boolean;
   myHand: Card[];
   opponentCardCount: number;
   deckCount: number;

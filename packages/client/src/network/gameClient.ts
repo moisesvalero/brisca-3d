@@ -320,9 +320,10 @@ export class GameClient {
   }
 
   public swapTrump(): void {
-    if (!this.state) return;
-    const card = this.state.myHand.find((candidate) =>
-      canSwapTrump(candidate, this.state!.trumpCard),
+    const state = this.state;
+    if (!state) return;
+    const card = state.myHand.find((candidate) =>
+      canSwapTrump(candidate, state.trumpCard, state.hasWonTrick),
     );
     if (!card) {
       this.onError?.("No tienes ninguna carta válida para cambiar el triunfo.");
@@ -435,8 +436,10 @@ export class GameClient {
     const hand = game.hands.p2;
     if (hand.length === 0) return;
 
-    // The bot only swaps if it actually holds a legal trump change.
-    const swappable = hand.find((card) => canSwapTrump(card, game.trumpCard));
+    // The bot only swaps if it has won a trick and holds a legal change.
+    const swappable = hand.find((card) =>
+      canSwapTrump(card, game.trumpCard, game.tricksWon.p2.length > 0),
+    );
     if (swappable && game.deck.length > 0) {
       try {
         swapTrumpCard(game, "p2", swappable.id);
@@ -491,6 +494,9 @@ export class GameClient {
       trumpCard: game.trumpCard,
       trumpSuit: game.trumpSuit,
       trumpTaken: game.trumpTaken,
+      hasWonTrick:
+        game.tricksWon.p1.length > 0 ||
+        (game.phase === "RESOLVING_TRICK" && game.currentTrick.winner === "p1"),
       myHand: [...game.hands.p1],
       opponentCardCount: game.hands.p2.length,
       deckCount: game.deck.length,

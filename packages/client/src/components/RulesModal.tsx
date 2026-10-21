@@ -198,17 +198,16 @@ export const RulesModal: React.FC<RulesModalProps> = ({ open, onClose }) => {
             </h3>
             <div className="space-y-1.5 text-sm leading-relaxed text-amber-100/90">
               <p>
-                El <b className="text-white">7 de triunfo</b> solo puede cambiar
-                una figura o carta con puntos (As, Tres, Rey, Caballo o Sota).
+                El <b className="text-white">7 de triunfo</b> puede cambiar un
+                triunfo mayor que 7 (As, Tres, Rey, Caballo o Sota).
               </p>
               <p>
-                El <b className="text-white">2 de triunfo</b> solo puede cambiar
-                el <b className="text-white">7 de triunfo</b>.
+                El <b className="text-white">2 de triunfo</b> puede cambiar un
+                triunfo de 7 o menor (7, 6, 5, 4 o 2).
               </p>
               <p className="text-xs text-amber-200/70">
-                Cualquier otro cambio no está permitido. Solo se puede cambiar
-                mientras quede mazo. Si tienes una carta válida, aparecerá el
-                botón «Cambiar triunfo».
+                Solo si ya has ganado al menos una baza y queda mazo. Si tienes
+                una carta válida, aparecerá el botón «Cambiar triunfo».
               </p>
             </div>
           </div>

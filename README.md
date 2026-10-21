@@ -52,7 +52,7 @@
 - Reparto de 3 cartas por jugador y triunfo descubierto bajo el mazo.
 - No es obligatorio asistir ni superar palo.
 - El ganador de la baza roba primero; al agotarse el mazo se recoge el triunfo.
-- **Regla del 7 y 2:** el 7 de triunfo solo cambia una figura o carta con puntos; el 2 solo cambia el 7, mientras quede mazo.
+- **Regla oficial del 7 y 2:** el 7 de triunfo cambia un triunfo mayor que 7; el 2 cambia un triunfo de 7 o menor. Solo si ya has ganado al menos una baza y queda mazo.
 
 ---
 
@@ -84,8 +84,8 @@ El puente de Vercel existe porque algunos ISP bloquean el rango de IPs de `worke
 brisca-3d/
 ├── api/ws.ts          # Puente WebSocket de Vercel
 ├── packages/
-│   ├── core/          # Baraja, reglas, bazas, puntos (19 tests)
-│   ├── session/       # Salas, turnos, reconexión, protocolo (12 tests)
+│   ├── core/          # Baraja, reglas, bazas, puntos (35 tests)
+│   ├── session/       # Salas, turnos, reconexión, protocolo (15 tests)
 │   ├── server/        # Servidor Node + ws para desarrollo local
 │   ├── worker/        # Cloudflare Worker + Durable Object
 │   └── client/        # React 19 + Three.js + Tailwind + PWA
@@ -195,7 +195,8 @@ El token de reconexión se guarda en `sessionStorage` por sala; el apodo en `loc
 
 ## 🧪 Calidad
 
-- **36 tests**: motor, sesión y servidor (partida completa, revancha, reconexión, sala llena, rate limit, mensajes inválidos).
+- **55 tests**: reglas, motor, sesión y servidor (baraja, bazas, robos, triunfo, fin de partida, partida completa, reconexión, rate limit y mensajes inválidos).
+- **Auditoría de reglas:** 6.400 combinaciones de bazas y partida completa de 20 bazas verificadas (robos, triunfo, 120 puntos y empate a 60).
 - TypeScript estricto, `oxlint` y `prettier` con Husky + lint-staged.
 - CI en `.github/workflows/ci.yml`.
 - E2E manual verificado en navegador real: crear/unirse, partida completa, revancha, enlace de invitación, modo IA y reconexión.

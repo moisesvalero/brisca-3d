@@ -302,7 +302,7 @@ export const App: React.FC = () => {
     const current = clientRef.current?.state;
     if (!current) return;
     const canSwap = current.myHand.some((card) =>
-      canSwapTrump(card, current.trumpCard),
+      canSwapTrump(card, current.trumpCard, current.hasWonTrick),
     );
     if (!canSwap) return;
     sounds.playTrumpSwap();
