@@ -242,6 +242,7 @@ export class GameClient {
       case "ERROR": {
         const code = message.payload?.code as string | undefined;
         const text = message.payload?.message ?? "Error del servidor";
+        const wasAwaitingAck = this.awaitingAck;
         this.awaitingAck = false;
         if (this.ackTimer) clearTimeout(this.ackTimer);
         this.ackTimer = null;
@@ -256,9 +257,12 @@ export class GameClient {
         }
 
         this.onError?.(text);
-        if (!this.roomCode || this.awaitingAck) {
+        if (!this.roomCode || wasAwaitingAck) {
           this.intentionalClose = true;
           this.closeSocket();
+          if (wasAwaitingAck) {
+            this.resetRoom();
+          }
           this.setStatus("error");
         }
         break;
